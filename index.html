@@ -30,7 +30,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg)}
 body{font-family:var(--font);color:var(--text)}
 
 /* AUTH SCREEN */
-.auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;z-index:1000}
+.auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;z-index:1000;overflow-y:auto}
 .auth-screen.hidden{display:none}
 .auth-logo{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px}
 .auth-logo em{color:var(--green);font-style:normal}
@@ -55,6 +55,9 @@ body{font-family:var(--font);color:var(--text)}
 .loading-screen.hidden{display:none}
 .loading-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+/* RESET PASSWORD */
+.reset-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;z-index:1001;overflow-y:auto}
+.reset-screen.hidden{display:none}
 
 /* APP */
 .app{height:100%;display:none;flex-direction:column;overflow:hidden;position:relative}
@@ -260,6 +263,24 @@ body{font-family:var(--font);color:var(--text)}
   <div class="loading-dot"></div>
 </div>
 
+<!-- RESET PASSWORD SCREEN -->
+<div class="reset-screen hidden" id="resetScreen">
+  <div class="auth-logo">Scheda <em>Alimentare</em></div>
+  <div class="auth-sub" style="margin-bottom:24px">Imposta la nuova password</div>
+  <div class="auth-box">
+    <div class="auth-field">
+      <label>Nuova password</label>
+      <input class="auth-input" type="password" id="resetNewPassword" placeholder="Minimo 6 caratteri">
+    </div>
+    <div class="auth-field">
+      <label>Conferma password</label>
+      <input class="auth-input" type="password" id="resetConfirmPassword" placeholder="Ripeti la password">
+    </div>
+    <button class="auth-btn" onclick="doResetPassword()">Salva nuova password</button>
+    <div class="auth-error" id="resetError"></div>
+  </div>
+</div>
+
 <!-- AUTH SCREEN -->
 <div class="auth-screen hidden" id="authScreen">
   <div class="auth-logo">Scheda <em>Alimentare</em></div>
@@ -279,7 +300,16 @@ body{font-family:var(--font);color:var(--text)}
         <input class="auth-input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
       </div>
       <button class="auth-btn" onclick="doLogin()" id="loginBtn">Accedi</button>
-      <button class="forgot-link" onclick="doForgotPassword()">Password dimenticata?</button>
+      <button class="forgot-link" onclick="showForgotForm(true)">Password dimenticata?</button>
+    </div>
+    <div id="forgotForm" style="display:none">
+      <div style="font-size:13px;color:var(--text-mid);margin-bottom:16px">Inserisci la tua email per ricevere il link di recupero.</div>
+      <div class="auth-field">
+        <label>Email</label>
+        <input class="auth-input" type="email" id="forgotEmail" placeholder="la-tua@email.com" autocomplete="email">
+      </div>
+      <button class="auth-btn" onclick="doForgotPassword()" id="forgotBtn">Invia link di recupero</button>
+      <button class="forgot-link" onclick="showForgotForm(false)">&#8592; Torna al login</button>
     </div>
     <div id="registerForm" style="display:none">
       <div class="auth-field">
@@ -553,16 +583,43 @@ let today = new Date().getDay(); today = today===0?6:today-1;
 let currentDay = today, timerInt = null, settingsDay = 0;
 
 // ── AUTH ──────────────────────────────────────────────────
+function showAllHidden() {
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('visible');
+  document.getElementById('welcomeScreen').classList.add('hidden');
+  document.getElementById('resetScreen').classList.add('hidden');
+  document.getElementById('profileModal').classList.add('hidden');
+}
+function showAuth() {
+  showAllHidden();
+  document.getElementById('authScreen').classList.remove('hidden');
+}
+function showApp() {
+  showAllHidden();
+  document.getElementById('mainApp').classList.add('visible');
+}
+
 function switchAuthTab(tab) {
   document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
   document.getElementById('loginForm').style.display = tab==='login'?'block':'none';
+  document.getElementById('forgotForm').style.display = 'none';
   document.getElementById('registerForm').style.display = tab==='register'?'block':'none';
   document.getElementById('authError').classList.remove('show');
 }
 
-function showAuthError(msg) {
+function showForgotForm(show) {
+  document.getElementById('loginForm').style.display = show ? 'none' : 'block';
+  document.getElementById('forgotForm').style.display = show ? 'block' : 'none';
+  document.getElementById('authError').classList.remove('show');
+}
+
+function showAuthError(msg, isSuccess) {
   const el = document.getElementById('authError');
   el.textContent = msg;
+  el.style.color = isSuccess ? 'var(--green)' : '#ff5555';
+  el.style.borderColor = isSuccess ? 'rgba(184,245,102,.3)' : 'rgba(255,85,85,.3)';
+  el.style.background = isSuccess ? 'rgba(184,245,102,.1)' : 'rgba(255,85,85,.1)';
   el.classList.add('show');
 }
 
@@ -598,9 +655,9 @@ async function doRegister() {
 
 async function doLogout() {
   if (syncTimeout) clearTimeout(syncTimeout);
+  if (timerInt) { clearInterval(timerInt); timerInt = null; }
   await sb.auth.signOut();
   currentUser = null;
-  // Reset tutto lo state
   state = {
     meals: {},
     shop: {},
@@ -609,14 +666,9 @@ async function doLogout() {
   };
   currentDay = today;
   settingsDay = 0;
-  if (timerInt) { clearInterval(timerInt); timerInt = null; }
-  document.getElementById('mainApp').classList.remove('visible');
-  document.getElementById('profileModal').classList.add('hidden');
-  document.getElementById('welcomeScreen').classList.add('hidden');
-  document.getElementById('authScreen').classList.remove('hidden');
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPassword').value = '';
-  document.getElementById('authError').classList.remove('show');
+  showAuth();
 }
 
 // ── SUPABASE DATA SYNC ────────────────────────────────────
@@ -681,10 +733,11 @@ async function initApp(user, isNewUser = false) {
   renderDayNav();
   renderMeals();
   updateProgress();
-  document.getElementById('loadingScreen').classList.add('hidden');
-  document.getElementById('authScreen').classList.add('hidden');
-  document.getElementById('mainApp').classList.add('visible');
-  if (isNewUser) showWelcomeScreen(nickname);
+  showApp();
+  if (isNewUser) {
+    document.getElementById('welcomeName').textContent = nickname;
+    document.getElementById('welcomeScreen').classList.remove('hidden');
+  }
 }
 
 // Fallback: se dopo 6 secondi non arriva risposta, mostra login
@@ -692,9 +745,8 @@ let sessionChecked = false;
 setTimeout(() => {
   if (sessionChecked) return;
   sessionChecked = true;
-  document.getElementById('loadingScreen').classList.add('hidden');
-  document.getElementById('authScreen').classList.remove('hidden');
-}, 6000);
+  showAuth();
+}, 5000);
 
 // Controlla sessione al caricamento con getSession() (più affidabile)
 sb.auth.getSession().then(async ({ data: { session } }) => {
@@ -702,18 +754,19 @@ sb.auth.getSession().then(async ({ data: { session } }) => {
   if (session?.user) {
     await initApp(session.user, false);
   } else {
-    document.getElementById('loadingScreen').classList.add('hidden');
-    document.getElementById('authScreen').classList.remove('hidden');
+    showAuth();
   }
 });
 
 sb.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'SIGNED_IN' || event === 'SIGNED_UP') {
-    sessionChecked = true;
-    await initApp(session.user, event === 'SIGNED_UP');
+  sessionChecked = true;
+  if (event === 'PASSWORD_RECOVERY') {
+    showAllHidden();
+    document.getElementById('resetScreen').classList.remove('hidden');
+  } else if (event === 'SIGNED_IN') {
+    if (!currentUser) await initApp(session.user, false);
   } else if (event === 'SIGNED_OUT') {
-    document.getElementById('loadingScreen').classList.add('hidden');
-    document.getElementById('authScreen').classList.remove('hidden');
+    showAuth();
   }
 });
 
@@ -908,29 +961,29 @@ function switchView(view,btn) {
 
 // ── FORGOT PASSWORD ───────────────────────────────────────
 async function doForgotPassword() {
-  const email = document.getElementById('loginEmail').value.trim();
-  if (!email) {
-    showAuthError('Inserisci prima la tua email nel campo sopra');
-    return;
-  }
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin
-  });
-  if (error) {
-    showAuthError('Errore: ' + error.message);
-  } else {
-    showAuthError('✓ Email di recupero inviata! Controlla la tua casella.');
-    document.getElementById('authError').style.color = 'var(--green)';
-    document.getElementById('authError').style.borderColor = 'rgba(184,245,102,.3)';
-    document.getElementById('authError').style.background = 'rgba(184,245,102,.1)';
-  }
+  const email = document.getElementById('forgotEmail').value.trim();
+  if (!email) return showAuthError('Inserisci la tua email');
+  const btn = document.getElementById('forgotBtn');
+  btn.disabled = true; btn.textContent = 'Invio...';
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  btn.disabled = false; btn.textContent = 'Invia link di recupero';
+  if (error) showAuthError('Errore: ' + error.message);
+  else showAuthError('✓ Email inviata! Controlla la tua casella e clicca il link.', true);
+}
+
+async function doResetPassword() {
+  const newPwd = document.getElementById('resetNewPassword').value;
+  const confirmPwd = document.getElementById('resetConfirmPassword').value;
+  const errEl = document.getElementById('resetError');
+  errEl.classList.remove('show');
+  if (newPwd.length < 6) { errEl.textContent='Min. 6 caratteri'; errEl.classList.add('show'); return; }
+  if (newPwd !== confirmPwd) { errEl.textContent='Le password non coincidono'; errEl.classList.add('show'); return; }
+  const { error } = await sb.auth.updateUser({ password: newPwd });
+  if (error) { errEl.textContent=error.message; errEl.classList.add('show'); }
+  else { showToast('Password aggiornata!'); setTimeout(() => showAuth(), 1500); }
 }
 
 // ── WELCOME SCREEN ────────────────────────────────────────
-function showWelcomeScreen(nickname) {
-  document.getElementById('welcomeName').textContent = nickname;
-  document.getElementById('welcomeScreen').classList.remove('hidden');
-}
 
 function skipWelcome() {
   document.getElementById('welcomeScreen').classList.add('hidden');
