@@ -524,6 +524,12 @@ function switchView(view,btn){
   if(view==='settings'){renderSettingsDayTabs();renderMealEditor();renderShopEditor();}
 }
 </script>
-<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js");}</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  });
+}
+</script>
 </body>
 </html>
