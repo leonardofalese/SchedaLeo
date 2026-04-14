@@ -1,7 +1,7 @@
 {
-  "name": "SchedaLeo",
-  "short_name": "SchedaLeo",
-  "description": "La tua scheda alimentare personale",
+  "name": "Scheda Alimentare",
+  "short_name": "Scheda",
+  "description": "La tua scheda nutrizionale personale",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
