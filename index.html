@@ -1017,6 +1017,7 @@ function cancelWelcomeImport() {
   document.getElementById('welcomeImportPreview').classList.remove('show');
   document.getElementById('welcomeImportStatus').classList.remove('show');
   document.getElementById('welcomeImportFile').value = '';
+  document.getElementById('welcomeImportDrop').style.display = '';
 }
 
 async function confirmWelcomeImport() {
@@ -1162,7 +1163,10 @@ Restituisci SOLO il JSON, niente altro.`,
 
     importedMealData = parsed;
     statusText.textContent = '✓ Scheda letta con successo';
-    showImportPreview(parsed, previewContentId);
+    // Nascondi il box di upload e mostra solo l'anteprima
+    const dropEl = document.getElementById(isW ? 'welcomeImportDrop' : 'importDrop');
+    if (dropEl) dropEl.style.display = 'none';
+    showImportPreview(parsed, previewContentId, previewId);
 
   } catch(err) {
     statusText.textContent = '✗ ' + (err.message || 'Errore durante l\'analisi');
@@ -1227,6 +1231,7 @@ function cancelImport() {
   document.getElementById('importPreview').classList.remove('show');
   document.getElementById('importStatus').classList.remove('show');
   document.getElementById('importFile').value = '';
+  document.getElementById('importDrop').style.display = '';
 }
 
 function confirmImport() {
