@@ -200,6 +200,35 @@ body{font-family:var(--font);color:var(--text)}
 .sync-indicator{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-left:6px;opacity:0;transition:opacity .3s}
 .sync-indicator.syncing{opacity:1;animation:pulse 1s ease-in-out infinite}
 
+/* WELCOME SCREEN */
+.welcome-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;z-index:998;overflow-y:auto}
+.welcome-screen.hidden{display:none}
+.welcome-box{width:100%;max-width:360px}
+.welcome-title{font-size:24px;font-weight:800;margin-bottom:6px}
+.welcome-title em{color:var(--green);font-style:normal}
+.welcome-sub{font-size:13px;color:var(--text-mid);margin-bottom:28px}
+.welcome-skip{background:transparent;border:none;font-family:var(--font);font-size:13px;color:var(--text-soft);cursor:pointer;text-decoration:underline;margin-top:12px;display:block;width:100%;text-align:center}
+/* PROFILE MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal-overlay.hidden{display:none}
+.modal-sheet{background:var(--card);border-radius:var(--r) var(--r) 0 0;padding:24px;width:100%;max-width:480px;border-top:1px solid var(--border2)}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 20px}
+.modal-title{font-size:18px;font-weight:800;margin-bottom:20px}
+.modal-field{margin-bottom:14px}
+.modal-field label{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-soft);margin-bottom:6px}
+.modal-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:12px 14px;font-family:var(--font);font-size:14px;color:var(--text);outline:none;transition:border-color .2s}
+.modal-input:focus{border-color:var(--green)}
+.modal-btn{width:100%;background:var(--green);color:#0a0a0a;border:none;border-radius:40px;padding:13px;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;margin-top:4px}
+.modal-btn-ghost{width:100%;background:transparent;border:1px solid var(--border2);border-radius:40px;padding:13px;font-family:var(--font);font-size:14px;font-weight:600;color:var(--text-mid);cursor:pointer;margin-top:8px}
+.modal-divider{height:1px;background:var(--border);margin:20px 0}
+.modal-error{background:rgba(255,85,85,.1);border:1px solid rgba(255,85,85,.3);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;color:#ff5555;margin-top:8px;display:none}
+.modal-error.show{display:block}
+.modal-success{background:rgba(184,245,102,.1);border:1px solid rgba(184,245,102,.3);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;color:var(--green);margin-top:8px;display:none}
+.modal-success.show{display:block}
+.profile-btn{width:32px;height:32px;border-radius:50%;background:var(--card2);border:1px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.profile-initials{font-size:12px;font-weight:700;color:var(--green);font-family:var(--mono)}
+.forgot-link{background:none;border:none;font-family:var(--font);font-size:12px;color:var(--text-soft);cursor:pointer;text-decoration:underline;margin-top:10px;display:block;width:100%;text-align:center}
+
 /* IMPORT */
 .import-drop{border:2px dashed var(--border2);border-radius:var(--r);padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--card);position:relative}
 .import-drop:hover,.import-drop.dragover{border-color:var(--green);background:var(--green-dim)}
@@ -250,6 +279,7 @@ body{font-family:var(--font);color:var(--text)}
         <input class="auth-input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
       </div>
       <button class="auth-btn" onclick="doLogin()" id="loginBtn">Accedi</button>
+      <button class="forgot-link" onclick="doForgotPassword()">Password dimenticata?</button>
     </div>
     <div id="registerForm" style="display:none">
       <div class="auth-field">
@@ -271,6 +301,61 @@ body{font-family:var(--font);color:var(--text)}
   </div>
 </div>
 
+
+<!-- WELCOME SCREEN (post-registrazione) -->
+<div class="welcome-screen hidden" id="welcomeScreen">
+  <div class="welcome-box">
+    <div class="welcome-title">Benvenuto/a, <em id="welcomeName">Leo</em>!</div>
+    <div class="welcome-sub">Vuoi importare subito la tua scheda alimentare? Carica un PDF, immagine o file di testo.</div>
+    <div class="import-drop" id="welcomeImportDrop" ondragover="handleDragOver(event,'welcomeImportDrop')" ondragleave="handleDragLeave(event,'welcomeImportDrop')" ondrop="handleDrop(event,'welcome')">
+      <input type="file" id="welcomeImportFile" accept=".pdf,.jpg,.jpeg,.png,.txt" onchange="handleFileSelect(event,'welcome')">
+      <div class="import-drop-icon">📄</div>
+      <div class="import-drop-title">Carica la tua scheda</div>
+      <div class="import-drop-sub">PDF, JPG, PNG, TXT</div>
+    </div>
+    <div class="import-status" id="welcomeImportStatus">
+      <div><span class="import-spinner"></span><span id="welcomeImportStatusText">Analisi in corso…</span></div>
+    </div>
+    <div class="import-preview" id="welcomeImportPreview">
+      <div class="import-status-label" style="margin-top:12px">Anteprima scheda rilevata</div>
+      <div id="welcomeImportPreviewContent"></div>
+      <div class="import-actions">
+        <button class="import-cancel-btn" onclick="cancelWelcomeImport()">Annulla</button>
+        <button class="import-confirm-btn" onclick="confirmWelcomeImport()">✓ Importa e inizia</button>
+      </div>
+    </div>
+    <button class="welcome-skip" onclick="skipWelcome()">Salta, configurerò manualmente →</button>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay hidden" id="profileModal" onclick="closeProfileModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Il tuo profilo</div>
+    <div class="modal-field">
+      <label>Nickname</label>
+      <input class="modal-input" type="text" id="profileNickname" placeholder="Il tuo nickname" maxlength="20">
+    </div>
+    <button class="modal-btn" onclick="saveNickname()">Salva nickname</button>
+    <div class="modal-success" id="nicknameSuccess">Nickname aggiornato!</div>
+    <div class="modal-divider"></div>
+    <div class="modal-field">
+      <label>Nuova password</label>
+      <input class="modal-input" type="password" id="profileNewPassword" placeholder="Minimo 6 caratteri">
+    </div>
+    <div class="modal-field">
+      <label>Conferma password</label>
+      <input class="modal-input" type="password" id="profileConfirmPassword" placeholder="Ripeti la password">
+    </div>
+    <button class="modal-btn" onclick="savePassword()">Cambia password</button>
+    <div class="modal-error" id="passwordError"></div>
+    <div class="modal-success" id="passwordSuccess">Password aggiornata!</div>
+    <div class="modal-divider"></div>
+    <button class="modal-btn-ghost" onclick="doLogout()">Esci dall'account</button>
+  </div>
+</div>
+
 <!-- APP -->
 <div class="app" id="mainApp">
   <div class="header">
@@ -278,7 +363,7 @@ body{font-family:var(--font);color:var(--text)}
       <div class="app-title">Scheda<em id="appNickname">Leo</em><span class="sync-indicator" id="syncDot"></span></div>
       <div class="header-right">
         <div class="date-pill" id="datePill">—</div>
-        <button class="logout-btn" onclick="doLogout()">Esci</button>
+        <button class="profile-btn" onclick="openProfileModal()" id="profileBtn"><span class="profile-initials" id="profileInitials">?</span></button>
       </div>
     </div>
   </div>
@@ -514,8 +599,20 @@ async function doRegister() {
 async function doLogout() {
   await sb.auth.signOut();
   currentUser = null;
+  // Reset state
+  state = {
+    meals: {},
+    shop: {},
+    mealData: JSON.parse(JSON.stringify(DEFAULT_MEALS)),
+    shopData: JSON.parse(JSON.stringify(DEFAULT_SHOP))
+  };
   document.getElementById('mainApp').classList.remove('visible');
+  document.getElementById('profileModal').classList.add('hidden');
+  document.getElementById('welcomeScreen').classList.add('hidden');
   document.getElementById('authScreen').classList.remove('hidden');
+  // Reset auth form
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
 }
 
 // ── SUPABASE DATA SYNC ────────────────────────────────────
@@ -563,10 +660,11 @@ function save() {
 }
 
 // ── INIT APP ──────────────────────────────────────────────
-async function initApp(user) {
+async function initApp(user, isNewUser = false) {
   currentUser = user;
   const nickname = user.user_metadata?.nickname || 'Leo';
   document.getElementById('appNickname').textContent = nickname;
+  document.getElementById('profileInitials').textContent = nickname.charAt(0).toUpperCase();
   document.getElementById('datePill').textContent = new Date().toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'});
   await loadFromCloud();
   renderDayNav();
@@ -575,12 +673,14 @@ async function initApp(user) {
   document.getElementById('loadingScreen').classList.add('hidden');
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('mainApp').classList.add('visible');
+  if (isNewUser) showWelcomeScreen(nickname);
 }
 
 // Controlla sessione al caricamento
 sb.auth.onAuthStateChange(async (event, session) => {
   if (session?.user) {
-    await initApp(session.user);
+    const isNew = event === 'SIGNED_UP';
+    await initApp(session.user, isNew);
   } else {
     document.getElementById('loadingScreen').classList.add('hidden');
     document.getElementById('authScreen').classList.remove('hidden');
@@ -775,26 +875,135 @@ function switchView(view,btn) {
   if(view==='settings'){renderSettingsDayTabs();renderMealEditor();renderShopEditor();}
 }
 
+
+// ── FORGOT PASSWORD ───────────────────────────────────────
+async function doForgotPassword() {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) {
+    showAuthError('Inserisci prima la tua email nel campo sopra');
+    return;
+  }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  });
+  if (error) {
+    showAuthError('Errore: ' + error.message);
+  } else {
+    showAuthError('✓ Email di recupero inviata! Controlla la tua casella.');
+    document.getElementById('authError').style.color = 'var(--green)';
+    document.getElementById('authError').style.borderColor = 'rgba(184,245,102,.3)';
+    document.getElementById('authError').style.background = 'rgba(184,245,102,.1)';
+  }
+}
+
+// ── WELCOME SCREEN ────────────────────────────────────────
+function showWelcomeScreen(nickname) {
+  document.getElementById('welcomeName').textContent = nickname;
+  document.getElementById('welcomeScreen').classList.remove('hidden');
+}
+
+function skipWelcome() {
+  document.getElementById('welcomeScreen').classList.add('hidden');
+}
+
+function cancelWelcomeImport() {
+  importedMealData = null;
+  document.getElementById('welcomeImportPreview').classList.remove('show');
+  document.getElementById('welcomeImportStatus').classList.remove('show');
+  document.getElementById('welcomeImportFile').value = '';
+}
+
+async function confirmWelcomeImport() {
+  if (!importedMealData) return;
+  const fixed = {};
+  Object.keys(importedMealData.days).forEach(k => { fixed[parseInt(k)] = importedMealData.days[k]; });
+  state.mealData.days = fixed;
+  if (importedMealData.times) state.mealData.times = importedMealData.times;
+  save();
+  renderMeals();
+  updateProgress();
+  document.getElementById('welcomeScreen').classList.add('hidden');
+  showToast('Scheda importata! ✓');
+}
+
+// ── PROFILE MODAL ─────────────────────────────────────────
+function openProfileModal() {
+  const nickname = currentUser?.user_metadata?.nickname || '';
+  document.getElementById('profileNickname').value = nickname;
+  document.getElementById('profileNewPassword').value = '';
+  document.getElementById('profileConfirmPassword').value = '';
+  document.getElementById('nicknameSuccess').classList.remove('show');
+  document.getElementById('passwordError').classList.remove('show');
+  document.getElementById('passwordSuccess').classList.remove('show');
+  document.getElementById('profileModal').classList.remove('hidden');
+}
+
+function closeProfileModal(e) {
+  if (e.target === document.getElementById('profileModal')) {
+    document.getElementById('profileModal').classList.add('hidden');
+  }
+}
+
+async function saveNickname() {
+  const nickname = document.getElementById('profileNickname').value.trim();
+  if (!nickname) return;
+  const clean = nickname.charAt(0).toUpperCase() + nickname.slice(1).toLowerCase();
+  const { data, error } = await sb.auth.updateUser({ data: { nickname: clean } });
+  if (!error) {
+    currentUser = data.user;
+    document.getElementById('appNickname').textContent = clean;
+    document.getElementById('profileInitials').textContent = clean.charAt(0).toUpperCase();
+    document.getElementById('nicknameSuccess').classList.add('show');
+    setTimeout(() => document.getElementById('nicknameSuccess').classList.remove('show'), 2000);
+  }
+}
+
+async function savePassword() {
+  const newPwd = document.getElementById('profileNewPassword').value;
+  const confirmPwd = document.getElementById('profileConfirmPassword').value;
+  const errEl = document.getElementById('passwordError');
+  const okEl = document.getElementById('passwordSuccess');
+  errEl.classList.remove('show');
+  okEl.classList.remove('show');
+  if (newPwd.length < 6) { errEl.textContent = 'La password deve essere di almeno 6 caratteri'; errEl.classList.add('show'); return; }
+  if (newPwd !== confirmPwd) { errEl.textContent = 'Le password non coincidono'; errEl.classList.add('show'); return; }
+  const { error } = await sb.auth.updateUser({ password: newPwd });
+  if (error) { errEl.textContent = error.message; errEl.classList.add('show'); }
+  else {
+    okEl.classList.add('show');
+    document.getElementById('profileNewPassword').value = '';
+    document.getElementById('profileConfirmPassword').value = '';
+    setTimeout(() => okEl.classList.remove('show'), 2000);
+  }
+}
+
 // ── IMPORT SCHEDA ─────────────────────────────────────────
 let importedMealData = null;
 
-function handleDragOver(e) { e.preventDefault(); document.getElementById('importDrop').classList.add('dragover'); }
-function handleDragLeave(e) { document.getElementById('importDrop').classList.remove('dragover'); }
-function handleDrop(e) {
+function handleDragOver(e, dropId) { e.preventDefault(); document.getElementById(dropId||'importDrop').classList.add('dragover'); }
+function handleDragLeave(e, dropId) { document.getElementById(dropId||'importDrop').classList.remove('dragover'); }
+function handleDrop(e, ctx) {
   e.preventDefault();
-  document.getElementById('importDrop').classList.remove('dragover');
+  const dropId = ctx==='welcome' ? 'welcomeImportDrop' : 'importDrop';
+  document.getElementById(dropId).classList.remove('dragover');
   const file = e.dataTransfer.files[0];
-  if (file) processImportFile(file);
+  if (file) processImportFile(file, ctx||'settings');
 }
-function handleFileSelect(e) {
+function handleFileSelect(e, ctx) {
   const file = e.target.files[0];
-  if (file) processImportFile(file);
+  if (file) processImportFile(file, ctx||'settings');
 }
 
-async function processImportFile(file) {
-  const status = document.getElementById('importStatus');
-  const preview = document.getElementById('importPreview');
-  const statusText = document.getElementById('importStatusText');
+async function processImportFile(file, ctx) {
+  ctx = ctx || 'settings';
+  const isWelcome = ctx === 'welcome';
+  const statusId = isWelcome ? 'welcomeImportStatus' : 'importStatus';
+  const previewId = isWelcome ? 'welcomeImportPreview' : 'importPreview';
+  const statusTextId = isWelcome ? 'welcomeImportStatusText' : 'importStatusText';
+  const previewContentId = isWelcome ? 'welcomeImportPreviewContent' : 'importPreviewContent';
+  const status = document.getElementById(statusId);
+  const preview = document.getElementById(previewId);
+  const statusText = document.getElementById(statusTextId);
   preview.classList.remove('show');
   status.classList.add('show');
   statusText.textContent = 'Lettura file…';
@@ -847,7 +1056,7 @@ Restituisci SOLO il JSON, niente altro.`,
 
     importedMealData = parsed;
     statusText.textContent = '✓ Scheda letta con successo';
-    showImportPreview(parsed);
+    showImportPreview(parsed, previewContentId);
 
   } catch(err) {
     statusText.textContent = '✗ ' + (err.message || 'Errore durante l\'analisi');
@@ -886,9 +1095,10 @@ function fileToBase64(file) {
   });
 }
 
-function showImportPreview(data) {
-  const preview = document.getElementById('importPreview');
-  const content = document.getElementById('importPreviewContent');
+function showImportPreview(data, previewContentId) {
+  const previewId = previewContentId === 'welcomeImportPreviewContent' ? 'welcomeImportPreview' : 'importPreview';
+  const preview = document.getElementById(previewId);
+  const content = document.getElementById(previewContentId || 'importPreviewContent');
   const giorni = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
   const pasti = ['colazione','pranzo','spuntini','cena'];
   const labels = {colazione:'Colazione',pranzo:'Pranzo',spuntini:'Spuntini',cena:'Cena'};
