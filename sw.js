@@ -1,5 +1,7 @@
-const CACHE_NAME = 'scheda-alimentare-v1';
-const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+const CACHE_NAME = 'scheda-alimentare-v3';
+const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png',
+  '/css/app.css', '/js/config.js', '/js/state.js', '/js/auth.js',
+  '/js/sync.js', '/js/render.js', '/js/app.js', '/js/init.js'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
