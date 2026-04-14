@@ -676,12 +676,31 @@ async function initApp(user, isNewUser = false) {
   if (isNewUser) showWelcomeScreen(nickname);
 }
 
-// Controlla sessione al caricamento
-sb.auth.onAuthStateChange(async (event, session) => {
+// Fallback: se dopo 6 secondi non arriva risposta, mostra login
+let sessionChecked = false;
+setTimeout(() => {
+  if (sessionChecked) return;
+  sessionChecked = true;
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('authScreen').classList.remove('hidden');
+}, 6000);
+
+// Controlla sessione al caricamento con getSession() (più affidabile)
+sb.auth.getSession().then(async ({ data: { session } }) => {
+  sessionChecked = true;
   if (session?.user) {
-    const isNew = event === 'SIGNED_UP';
-    await initApp(session.user, isNew);
+    await initApp(session.user, false);
   } else {
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('authScreen').classList.remove('hidden');
+  }
+});
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_IN' || event === 'SIGNED_UP') {
+    sessionChecked = true;
+    await initApp(session.user, event === 'SIGNED_UP');
+  } else if (event === 'SIGNED_OUT') {
     document.getElementById('loadingScreen').classList.add('hidden');
     document.getElementById('authScreen').classList.remove('hidden');
   }
