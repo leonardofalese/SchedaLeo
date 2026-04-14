@@ -1,3 +1,17 @@
+// Calcola kcal giorno (solo pasti completati se onlyDone=true)
+function calcDayKcal(dayIndex, onlyDone) {
+  let total = 0;
+  MEAL_KEYS.forEach(k => {
+    if (onlyDone && !isDone(dayIndex, k)) return;
+    const foods = state.mealData.days[dayIndex]?.[k] || [];
+    foods.forEach(f => { total += calcKcalFromFood(f); });
+  });
+  return total;
+}
+function calcTotalDayKcal(dayIndex) {
+  return calcDayKcal(dayIndex, false);
+}
+
 // ── RENDER FUNCTIONS (identiche a prima) ─────────────────
 const mealKey = (d,k) => `d${d}_${k}`;
 const isDone = (d,k) => !!state.meals[mealKey(d,k)];
@@ -29,7 +43,7 @@ function renderMeals() {
     return `<div class="meal-card ${done?'done':''}" onclick="toggleMeal(${currentDay},'${k}')">
       <div class="meal-header">
         <div class="meal-icon-wrap" style="color:${done?'var(--green)':'var(--text-mid)'}">${ICO[k]}</div>
-        <div class="meal-info"><div class="meal-name">${MEAL_LABELS[k]}</div><div class="meal-time">${times[k]}</div></div>
+        <div class="meal-info"><div class="meal-name">${MEAL_LABELS[k]}<span style="font-size:11px;font-weight:400;color:var(--text-mid);margin-left:8px;font-family:var(--mono)">${(()=>{const kc=foods.reduce((s,f)=>s+calcKcalFromFood(f),0);return kc>0?kc+' kcal':'';})()}</span></div><div class="meal-time">${times[k]}</div></div>
         <div class="meal-check ${done?'checked':''}">${done?'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}</div>
       </div>
       <div class="meal-foods">${foods.map(f=>{const p=parseFood(f);return`<div class="food-row"><span class="food-qty">${p.qty}</span><span class="food-name">${p.name}</span></div>`;}).join('')}</div>
@@ -42,30 +56,27 @@ function updateProgress() {
   const kcalDone = calcDayKcal(currentDay, true);
   const kcalTotal = calcTotalDayKcal(currentDay);
 
-  // Ring mostra % calorie consumate
+  // Ring: % calorie consumate, label mostra "consumate/totale"
   const pct = kcalTotal > 0 ? Math.min(kcalDone / kcalTotal, 1) : (done / 4);
   document.getElementById('ringFill').style.strokeDashoffset = 188.5 - (188.5 * pct);
-  document.getElementById('ringLabel').textContent = kcalDone > 0 ? kcalDone + '' : done + '/4';
+  document.getElementById('ringLabel').textContent = kcalTotal > 0 ? kcalDone + '' : done + '/4';
 
   // Titolo progressivo
   const titles = ['Inizia la giornata', 'Ottimo inizio!', 'Metà strada', 'Quasi fatto!', 'Completata! ⚡'];
   document.getElementById('progressTitle').textContent = titles[done] || 'Completata! ⚡';
-
-  // Sub: kcal consumate / totale
-  const kcalEl = document.getElementById('kcalDisplay');
-  if (kcalEl) {
-    if (kcalTotal > 0) {
-      kcalEl.textContent = kcalDone + ' / ' + kcalTotal + ' kcal';
-    } else {
-      kcalEl.textContent = kcalDone > 0 ? kcalDone + ' kcal consumate' : '— kcal';
-    }
+  // Mostra target kcal giornaliero nel sottotitolo
+  const kcalEl2 = document.getElementById('kcalDisplay');
+  if (kcalEl2) {
+    kcalEl2.style.display = '';
+    kcalEl2.textContent = kcalTotal > 0 ? kcalDone + ' / ' + kcalTotal + ' kcal' : '';
   }
 
+
+
+  // Dot: solo nome, niente numeri
   document.getElementById('mealDots').innerHTML = MEAL_KEYS.map(k => {
     const d = isDone(currentDay, k);
-    const foods = state.mealData.days[currentDay]?.[k] || [];
-    const kcal = foods.reduce((s, f) => s + calcKcalFromFood(f), 0);
-    return `<div class="meal-dot-wrap"><div class="meal-dot ${d ? 'done' : ''}"></div><div class="meal-dot-label">${k.slice(0,3).toUpperCase()}${kcal > 0 ? ' ' + kcal : ''}</div></div>`;
+    return `<div class="meal-dot-wrap"><div class="meal-dot ${d ? 'done' : ''}"></div><div class="meal-dot-label">${k.slice(0,3).toUpperCase()}</div></div>`;
   }).join('');
 }
 

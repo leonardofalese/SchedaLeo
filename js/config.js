@@ -127,19 +127,3 @@ function calcKcalFromFood(foodStr) {
   // Fallback: stima generica ~150 kcal per 100g
   return Math.round((qty * 150) / 100);
 }
-
-// Calcola totale kcal per un giorno (solo pasti completati)
-function calcDayKcal(dayIndex, onlyDone) {
-  let total = 0;
-  MEAL_KEYS.forEach(k => {
-    if (onlyDone && !isDone(dayIndex, k)) return;
-    const foods = state.mealData.days[dayIndex]?.[k] || [];
-    foods.forEach(f => { total += calcKcalFromFood(f); });
-  });
-  return total;
-}
-
-// Calcola totale kcal del giorno (tutti i pasti, target)
-function calcTotalDayKcal(dayIndex) {
-  return calcDayKcal(dayIndex, false);
-}
