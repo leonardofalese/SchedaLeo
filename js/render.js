@@ -39,10 +39,34 @@ function renderMeals() {
 function toggleMeal(d,k) { state.meals[mealKey(d,k)]=!isDone(d,k); save(); renderMeals(); updateProgress(); renderDayNav(); }
 function updateProgress() {
   const done = MEAL_KEYS.filter(k=>isDone(currentDay,k)).length;
-  document.getElementById('ringFill').style.strokeDashoffset = 188.5-(188.5*(done/4));
-  document.getElementById('ringLabel').textContent = done+'/4';
-  document.getElementById('progressTitle').textContent = ['Inizia la giornata','Ottimo inizio!','Metà strada','Quasi fatto!','Completata! ⚡'][done];
-  document.getElementById('mealDots').innerHTML = MEAL_KEYS.map(k=>`<div class="meal-dot-wrap"><div class="meal-dot ${isDone(currentDay,k)?'done':''}"></div><div class="meal-dot-label">${k.slice(0,3).toUpperCase()}</div></div>`).join('');
+  const kcalDone = calcDayKcal(currentDay, true);
+  const kcalTotal = calcTotalDayKcal(currentDay);
+
+  // Ring mostra % calorie consumate
+  const pct = kcalTotal > 0 ? Math.min(kcalDone / kcalTotal, 1) : (done / 4);
+  document.getElementById('ringFill').style.strokeDashoffset = 188.5 - (188.5 * pct);
+  document.getElementById('ringLabel').textContent = kcalDone > 0 ? kcalDone + '' : done + '/4';
+
+  // Titolo progressivo
+  const titles = ['Inizia la giornata', 'Ottimo inizio!', 'Metà strada', 'Quasi fatto!', 'Completata! ⚡'];
+  document.getElementById('progressTitle').textContent = titles[done] || 'Completata! ⚡';
+
+  // Sub: kcal consumate / totale
+  const kcalEl = document.getElementById('kcalDisplay');
+  if (kcalEl) {
+    if (kcalTotal > 0) {
+      kcalEl.textContent = kcalDone + ' / ' + kcalTotal + ' kcal';
+    } else {
+      kcalEl.textContent = kcalDone > 0 ? kcalDone + ' kcal consumate' : '— kcal';
+    }
+  }
+
+  document.getElementById('mealDots').innerHTML = MEAL_KEYS.map(k => {
+    const d = isDone(currentDay, k);
+    const foods = state.mealData.days[currentDay]?.[k] || [];
+    const kcal = foods.reduce((s, f) => s + calcKcalFromFood(f), 0);
+    return `<div class="meal-dot-wrap"><div class="meal-dot ${d ? 'done' : ''}"></div><div class="meal-dot-label">${k.slice(0,3).toUpperCase()}${kcal > 0 ? ' ' + kcal : ''}</div></div>`;
+  }).join('');
 }
 
 function renderTracker() {

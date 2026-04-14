@@ -37,3 +37,109 @@ const DEFAULT_SHOP=[
   {cat:'Verdure & Frutta',items:[{name:'Zucchine',qty:'2 kg'},{name:'Carote',qty:'350g'},{name:'Verdure miste',qty:'200g'},{name:'Frutta fresca',qty:'4-5 pz'},{name:'Banana',qty:'1 pz'}]},
   {cat:'Condimenti',items:[{name:'Olio EVO',qty:'80g'},{name:'Passata di pomodoro',qty:'q.b.'},{name:'Miele',qty:'40g'},{name:'Frutta secca',qty:'20g'},{name:'Cacao amaro',qty:'30g'},{name:'Cioccolato fondente',qty:'70g'}]}
 ];
+// ── DATABASE CALORICO (kcal per 100g) ─────────────────────
+const KCAL_DB = {
+  // Proteine
+  'latte intero': 61, 'latte': 61,
+  'yogurt greco': 97, 'greco': 97,
+  'uova': 155, 'uovo': 155,
+  'petto di pollo': 165, 'pollo': 165,
+  'macinato manzo': 250, 'macinato': 250, 'manzo': 250,
+  'bistecca vitello': 175, 'vitello': 175,
+  'salmone': 208, 'salmone fresco': 208, 'salmone affumicato': 172,
+  'tonno': 116, 'tonno in scatoletta': 116,
+  'bresaola': 151,
+  'prosciutto': 145,
+  'grana': 392, 'grana padano': 392, 'parmigiano': 392,
+  'mozzarella': 280,
+  'burro': 717,
+  // Carboidrati
+  'pasta': 350, 'pasta integrale': 340,
+  'riso': 360, 'riso basmati': 356,
+  'pane': 265, 'pane in cassetta': 268,
+  'avena': 389,
+  'patate': 77,
+  'fette biscottate': 410, 'fette': 410,
+  'biscotti': 450, 'biscotti secchi': 450,
+  'cereali': 375,
+  'gallette': 388,
+  // Verdure
+  'zucchine': 17,
+  'carote': 41,
+  'spinaci': 23,
+  'insalata': 15,
+  'broccoli': 34,
+  'pomodori': 18,
+  'verdure': 25,
+  // Frutta
+  'banana': 89,
+  'mela': 52,
+  'pera': 57,
+  'arancia': 47,
+  'frutto': 60,
+  'frutta': 60,
+  // Condimenti
+  'olio': 884, 'olio evo': 884, 'olio oliva': 884,
+  'miele': 304,
+  'cioccolato': 545, 'cioccolato fondente': 545,
+  'cacao': 354,
+  'frutta secca': 600, 'noci': 654, 'mandorle': 579,
+  // Prodotti confezionati (stima)
+  'galbusera protein': 370,
+};
+
+// Calcola kcal da stringa alimento es. "150g latte intero" o "2 uova"
+function calcKcalFromFood(foodStr) {
+  if (!foodStr || foodStr === 'Giorno libero' || foodStr === 'Libero') return 0;
+
+  // Cerca kcal esplicite: "500 kcal" o "500kcal"
+  const explicitKcal = foodStr.match(/(\d+(?:\.\d+)?)\s*kcal/i);
+  if (explicitKcal) return parseFloat(explicitKcal[1]);
+
+  const str = foodStr.toLowerCase().trim();
+
+  // Estrai quantità e unità
+  const qtyMatch = str.match(/^(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l|pz|fette?|scatolett[ae]|busta|pacco|pacchetto|porzione)?/i);
+  if (!qtyMatch) return 0;
+
+  let qty = parseFloat(qtyMatch[1].replace(',', '.'));
+  const unit = (qtyMatch[2] || 'g').toLowerCase();
+
+  // Converti in grammi
+  if (unit === 'kg') qty *= 1000;
+  else if (unit === 'l') qty *= 1000;
+  else if (unit === 'ml') qty = qty; // assume ~1g/ml
+  else if (unit === 'pz' || unit === 'fette' || unit === 'fetta') qty = qty * 50; // stima ~50g per pezzo
+  else if (unit === 'scatolette' || unit === 'scatoletta') qty = qty * 80; // stima 80g per scatoletta
+  else if (unit === 'busta') qty = qty * 100;
+  else if (unit === 'pacco' || unit === 'pacchetto') qty = qty * 100;
+
+  // Cerca il cibo nel database
+  const foodPart = str.replace(qtyMatch[0], '').trim();
+
+  // Prima cerca corrispondenza esatta
+  for (const [key, kcalPer100] of Object.entries(KCAL_DB)) {
+    if (foodPart.includes(key)) {
+      return Math.round((qty * kcalPer100) / 100);
+    }
+  }
+
+  // Fallback: stima generica ~150 kcal per 100g
+  return Math.round((qty * 150) / 100);
+}
+
+// Calcola totale kcal per un giorno (solo pasti completati)
+function calcDayKcal(dayIndex, onlyDone) {
+  let total = 0;
+  MEAL_KEYS.forEach(k => {
+    if (onlyDone && !isDone(dayIndex, k)) return;
+    const foods = state.mealData.days[dayIndex]?.[k] || [];
+    foods.forEach(f => { total += calcKcalFromFood(f); });
+  });
+  return total;
+}
+
+// Calcola totale kcal del giorno (tutti i pasti, target)
+function calcTotalDayKcal(dayIndex) {
+  return calcDayKcal(dayIndex, false);
+}
