@@ -734,15 +734,18 @@ async function initApp(user, isNewUser = false) {
   renderMeals();
   updateProgress();
   if (isNewUser) {
-    // Nuovo utente: stato vuoto, nessuna scheda di default
+    // Nuovo utente: stato completamente vuoto, nessuna scheda di default
     state = {
       meals: {},
       shop: {},
-      mealData: { times: {colazione:'07:30',pranzo:'13:00',spuntini:'16:30',cena:'20:00'}, days: {0:{colazione:[],pranzo:[],spuntini:[],cena:[]},1:{colazione:[],pranzo:[],spuntini:[],cena:[]},2:{colazione:[],pranzo:[],spuntini:[],cena:[]},3:{colazione:[],pranzo:[],spuntini:[],cena:[]},4:{colazione:[],pranzo:[],spuntini:[],cena:[]},5:{colazione:[],pranzo:[],spuntini:[],cena:[]},6:{colazione:[],pranzo:[],spuntini:[],cena:[]}} },
+      mealData: {
+        times: {colazione:'07:30',pranzo:'13:00',spuntini:'16:30',cena:'20:00'},
+        days: {0:{colazione:[],pranzo:[],spuntini:[],cena:[]},1:{colazione:[],pranzo:[],spuntini:[],cena:[]},2:{colazione:[],pranzo:[],spuntini:[],cena:[]},3:{colazione:[],pranzo:[],spuntini:[],cena:[]},4:{colazione:[],pranzo:[],spuntini:[],cena:[]},5:{colazione:[],pranzo:[],spuntini:[],cena:[]},6:{colazione:[],pranzo:[],spuntini:[],cena:[]}}
+      },
       shopData: []
     };
+    renderMeals(); updateProgress(); renderDayNav();
     document.getElementById('welcomeName').textContent = nickname;
-    // Mostra welcome screen sopra l'app (l'app è già visibile sotto)
     showApp();
     document.getElementById('welcomeScreen').classList.remove('hidden');
   } else {
@@ -1106,7 +1109,7 @@ async function processImportFile(file, ctx) {
     statusText.textContent = 'Claude sta analizzando la scheda…';
 
     const messages = buildImportMessages(base64, mediaType, file.type);
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('/api/claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
