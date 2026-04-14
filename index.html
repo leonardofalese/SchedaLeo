@@ -335,8 +335,8 @@ body{font-family:var(--font);color:var(--text)}
 <!-- WELCOME SCREEN (post-registrazione) -->
 <div class="welcome-screen hidden" id="welcomeScreen">
   <div class="welcome-box">
-    <div class="welcome-title">Benvenuto/a, <em id="welcomeName">Leo</em>!</div>
-    <div class="welcome-sub">Vuoi importare subito la tua scheda alimentare? Carica un PDF, immagine o file di testo.</div>
+    <div class="welcome-title">Ciao, <em id="welcomeName">Leo</em>! 👋</div>
+    <div class="welcome-sub">Carica la tua scheda alimentare per iniziare. Puoi importare un PDF, un'immagine o un file di testo.</div>
     <div class="import-drop" id="welcomeImportDrop" ondragover="handleDragOver(event,'welcomeImportDrop')" ondragleave="handleDragLeave(event,'welcomeImportDrop')" ondrop="handleDrop(event,'welcome')">
       <input type="file" id="welcomeImportFile" accept=".pdf,.jpg,.jpeg,.png,.txt" onchange="handleFileSelect(event,'welcome')">
       <div class="import-drop-icon">📄</div>
@@ -354,7 +354,7 @@ body{font-family:var(--font);color:var(--text)}
         <button class="import-confirm-btn" onclick="confirmWelcomeImport()">✓ Importa e inizia</button>
       </div>
     </div>
-    <button class="welcome-skip" onclick="skipWelcome()">Salta, configurerò manualmente →</button>
+    <button class="welcome-skip" onclick="skipWelcomeEmpty()">Salta, inserirò manualmente →</button>
   </div>
 </div>
 
@@ -480,8 +480,8 @@ body{font-family:var(--font);color:var(--text)}
           <button class="save-btn" style="margin-top:8px" onclick="saveShop()">Salva lista spesa</button>
         </div>
         <div class="settings-section">
-          <div class="settings-section-title">Importa scheda da file</div>
-          <div style="font-size:12px;color:var(--text-mid);margin-bottom:12px">Carica un PDF, immagine (JPG/PNG) o testo con la tua scheda alimentare. Claude la leggerà e importerà i pasti automaticamente.</div>
+          <div class="settings-section-title">Sovrascrivi scheda da file</div>
+          <div style="font-size:12px;color:var(--text-mid);margin-bottom:12px">Carica un nuovo file per sovrascrivere tutti i pasti della settimana. L'operazione sostituirà la scheda attuale.</div>
           <div class="import-drop" id="importDrop" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
             <input type="file" id="importFile" accept=".pdf,.jpg,.jpeg,.png,.txt" onchange="handleFileSelect(event)">
             <div class="import-drop-icon">📄</div>
@@ -733,10 +733,20 @@ async function initApp(user, isNewUser = false) {
   renderDayNav();
   renderMeals();
   updateProgress();
-  showApp();
   if (isNewUser) {
+    // Nuovo utente: stato vuoto, nessuna scheda di default
+    state = {
+      meals: {},
+      shop: {},
+      mealData: { times: {colazione:'07:30',pranzo:'13:00',spuntini:'16:30',cena:'20:00'}, days: {0:{colazione:[],pranzo:[],spuntini:[],cena:[]},1:{colazione:[],pranzo:[],spuntini:[],cena:[]},2:{colazione:[],pranzo:[],spuntini:[],cena:[]},3:{colazione:[],pranzo:[],spuntini:[],cena:[]},4:{colazione:[],pranzo:[],spuntini:[],cena:[]},5:{colazione:[],pranzo:[],spuntini:[],cena:[]},6:{colazione:[],pranzo:[],spuntini:[],cena:[]}} },
+      shopData: []
+    };
     document.getElementById('welcomeName').textContent = nickname;
+    // Mostra welcome screen sopra l'app (l'app è già visibile sotto)
+    showApp();
     document.getElementById('welcomeScreen').classList.remove('hidden');
+  } else {
+    showApp();
   }
 }
 
