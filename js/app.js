@@ -682,7 +682,12 @@ Restituisci SOLO il JSON, niente altro.`;
   try {
     const res = await fetch('/api/claude', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ system, message: `Scheda attuale:\n${JSON.stringify(state.mealData)}\n\nRichiesta: ${request}`, maxTokens: 4000 })
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system,
+        messages: [{ role:'user', content: `Scheda attuale:\n${JSON.stringify(state.mealData)}\n\nRichiesta: ${request}` }]
+      })
     });
     const data = await res.json();
     const raw  = (data.content?.[0]?.text||'').trim();
@@ -733,7 +738,12 @@ Restituisci SOLO il JSON, niente altro.`;
   try {
     const res = await fetch('/api/claude', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ system, message: `Scheda attuale:\n${JSON.stringify(state.gymData.giorni)}\n\nRichiesta: ${request}`, maxTokens: 4000 })
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system,
+        messages: [{ role:'user', content: `Scheda attuale:\n${JSON.stringify(state.gymData.giorni)}\n\nRichiesta: ${request}` }]
+      })
     });
     const data = await res.json();
     const raw  = (data.content?.[0]?.text||'').trim();
