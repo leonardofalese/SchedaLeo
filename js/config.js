@@ -158,43 +158,125 @@ const PACCO_WEIGHTS = {
 // Stopword solo connettive — NON aggettivi come magro/cotto che servono per il match
 const STOPWORDS = /\b(con|al|alla|allo|agli|alle|di|del|della|dello|in|no|senza|e)\b/g;
 
+// ── MACRO DATABASE (P/C/G per 100g · fonte USDA/INRAN) ────
+const MACRO_DB = {
+  // Latticini
+  'latte intero':{'p':3.2,'c':4.7,'g':3.6},'latte scremato':{'p':3.4,'c':4.9,'g':0.1},
+  'latte parzialmente scremato':{'p':3.3,'c':4.7,'g':1.5},'latte':{'p':3.2,'c':4.7,'g':3.6},
+  'yogurt greco 0%':{'p':10,'c':3.6,'g':0.1},'yogurt greco magro':{'p':10,'c':3.6,'g':0.1},
+  'yogurt greco':{'p':9,'c':3.6,'g':5.0},'greco':{'p':9,'c':3.6,'g':5.0},
+  'yogurt bianco':{'p':3.5,'c':4.7,'g':3.3},'yogurt':{'p':3.5,'c':4.7,'g':3.3},
+  'ricotta':{'p':11,'c':3.5,'g':13},'ricotta di mucca':{'p':11,'c':3.5,'g':13},
+  'grana padano':{'p':33,'c':0,'g':28},'parmigiano reggiano':{'p':33,'c':0,'g':28},
+  'parmigiano':{'p':33,'c':0,'g':28},'grana':{'p':33,'c':0,'g':28},
+  'mozzarella light':{'p':18,'c':1.4,'g':9},'mozzarella':{'p':18,'c':1.4,'g':20},
+  'fiocchi di latte':{'p':11,'c':3.8,'g':4.3},
+  'burro':{'p':0.7,'c':0,'g':81},'panna':{'p':2.3,'c':3,'g':35},
+  // Uova
+  'uova intere':{'p':13,'c':1.1,'g':11},'uova':{'p':13,'c':1.1,'g':11},'uovo':{'p':13,'c':1.1,'g':11},
+  'albume':{'p':11,'c':0.7,'g':0.2},'tuorlo':{'p':16,'c':0.6,'g':27},
+  // Carni
+  'petto di pollo':{'p':23,'c':0,'g':1.2},'pollo arrosto':{'p':27,'c':0,'g':7},'pollo':{'p':23,'c':0,'g':1.2},
+  'petto di tacchino':{'p':22,'c':0,'g':1},'tacchino':{'p':22,'c':0,'g':1},
+  'macinato manzo magro':{'p':20,'c':0,'g':9},'macinato manzo':{'p':17,'c':0,'g':20},
+  'macinato magro':{'p':20,'c':0,'g':9},'macinato':{'p':17,'c':0,'g':20},
+  'bistecca di manzo':{'p':22,'c':0,'g':15},'manzo':{'p':22,'c':0,'g':15},
+  'bistecca vitello':{'p':22,'c':0,'g':2},'vitello':{'p':22,'c':0,'g':2},
+  'lonza maiale':{'p':20,'c':0,'g':5},'maiale':{'p':20,'c':0,'g':5},
+  // Pesce
+  'salmone affumicato':{'p':18,'c':0,'g':12},'salmone fresco':{'p':20,'c':0,'g':8},'salmone':{'p':20,'c':0,'g':8},
+  'tonno sott\'olio':{'p':21,'c':0,'g':12},'tonno in scatoletta':{'p':22,'c':0,'g':1},'tonno':{'p':22,'c':0,'g':1},
+  'merluzzo':{'p':18,'c':0,'g':0.7},'branzino':{'p':18,'c':0,'g':3.5},
+  'orata':{'p':18,'c':0,'g':4.5},'pesce spada':{'p':20,'c':0,'g':5.5},
+  'gamberetti':{'p':20,'c':0,'g':1.5},'gamberoni':{'p':20,'c':0,'g':1.5},
+  // Salumi
+  'bresaola della valtellina':{'p':33,'c':0,'g':1.8},'bresaola':{'p':33,'c':0,'g':1.8},
+  'prosciutto cotto':{'p':19,'c':0,'g':7},'prosciutto crudo':{'p':25,'c':0,'g':21},'prosciutto':{'p':19,'c':0,'g':7},
+  'speck':{'p':24,'c':0,'g':14},'pancetta':{'p':14,'c':0,'g':30},
+  'mortadella':{'p':14,'c':0,'g':26},'wurstel':{'p':12,'c':1.5,'g':23},
+  // Legumi
+  'ceci cotti':{'p':8.9,'c':27,'g':2.6},'ceci':{'p':8.9,'c':27,'g':2.6},
+  'lenticchie cotte':{'p':9,'c':20,'g':0.4},'lenticchie':{'p':9,'c':20,'g':0.4},
+  'fagioli cotti':{'p':8,'c':22,'g':0.5},'fagioli':{'p':8,'c':22,'g':0.5},
+  'edamame':{'p':11,'c':10,'g':5},
+  // Carboidrati
+  'pasta integrale cotta':{'p':5,'c':25,'g':0.9},'pasta integrale':{'p':13.5,'c':67,'g':2.5},
+  'pasta cotta':{'p':5,'c':25,'g':0.8},'pasta':{'p':13,'c':72,'g':1.5},
+  'riso basmati cotto':{'p':2.7,'c':28,'g':0.3},'riso basmati':{'p':7,'c':79,'g':0.7},
+  'riso integrale cotto':{'p':2.6,'c':23,'g':0.9},'riso integrale':{'p':7.5,'c':76,'g':2.9},
+  'riso cotto':{'p':2.7,'c':28,'g':0.3},'riso':{'p':7,'c':79,'g':0.7},
+  'pane integrale':{'p':8,'c':46,'g':2},'pane in cassetta':{'p':9,'c':48,'g':3.5},'pane':{'p':9,'c':50,'g':2},
+  'fette biscottate integrali':{'p':9,'c':72,'g':3},'fette biscottate':{'p':9,'c':79,'g':3},
+  'gallette di riso':{'p':8,'c':81,'g':1.5},'gallette di mais':{'p':7.5,'c':80,'g':1},'gallette':{'p':8,'c':81,'g':1.5},
+  'crackers integrali':{'p':9,'c':74,'g':5},'crackers':{'p':8,'c':76,'g':8.5},
+  'fiocchi di avena':{'p':13,'c':66,'g':7},'avena istantanea':{'p':12,'c':66,'g':6},'avena':{'p':13,'c':66,'g':7},
+  'patate dolci':{'p':1.6,'c':20,'g':0.1},'patate':{'p':2,'c':16,'g':0.1},
+  'quinoa cotta':{'p':4.4,'c':21,'g':1.9},'quinoa':{'p':14,'c':72,'g':6},
+  'orzo':{'p':10,'c':73,'g':2.1},'farro':{'p':14,'c':67,'g':2.5},
+  'biscotti proteici':{'p':20,'c':50,'g':7},'biscotti secchi':{'p':6.5,'c':75,'g':9.5},'biscotti':{'p':6,'c':76,'g':12},
+  'cornflakes':{'p':7,'c':84,'g':0.9},'cereali proteici':{'p':20,'c':55,'g':5},'cereali':{'p':7,'c':78,'g':3},
+  'galbusera protein':{'p':15,'c':60,'g':8},'tortillas':{'p':7.5,'c':53,'g':6},
+  'farina integrale':{'p':12,'c':70,'g':2.5},'farina avena':{'p':14.5,'c':70,'g':7},'farina':{'p':10,'c':74,'g':1.4},
+  // Verdure
+  'zucchine':{'p':1.2,'c':3.1,'g':0.3},'carote':{'p':0.9,'c':9.6,'g':0.2},'broccoli':{'p':2.8,'c':7,'g':0.4},
+  'spinaci':{'p':2.9,'c':3.6,'g':0.4},'pomodori':{'p':0.9,'c':3.9,'g':0.2},'pomodorini':{'p':0.9,'c':3.9,'g':0.2},
+  'peperoni':{'p':1,'c':6,'g':0.3},'melanzane':{'p':1,'c':5.7,'g':0.2},
+  'insalata':{'p':1.3,'c':2,'g':0.2},'lattuga':{'p':1.3,'c':2,'g':0.2},'rucola':{'p':2.6,'c':3.7,'g':0.4},
+  'funghi champignon':{'p':2.5,'c':3.3,'g':0.5},'funghi':{'p':2.5,'c':3.3,'g':0.5},
+  'cetrioli':{'p':0.7,'c':2.2,'g':0.1},'asparagi':{'p':2.5,'c':3.7,'g':0.2},
+  'cipolle':{'p':1.1,'c':9.3,'g':0.1},'barbabietola':{'p':1.7,'c':9.6,'g':0.1},
+  'fagiolini':{'p':1.8,'c':6,'g':0.2},'verdure':{'p':1.5,'c':3.5,'g':0.2},
+  // Frutta
+  'banana':{'p':1.1,'c':23,'g':0.3},'mela':{'p':0.3,'c':14,'g':0.2},'pera':{'p':0.4,'c':15,'g':0.1},
+  'arancia':{'p':0.9,'c':12,'g':0.1},'kiwi':{'p':1.1,'c':14.7,'g':0.5},
+  'fragole':{'p':0.7,'c':8,'g':0.3},'mirtilli':{'p':0.7,'c':14.5,'g':0.3},
+  'avocado':{'p':2,'c':8.5,'g':15},'ananas':{'p':0.5,'c':13,'g':0.1},
+  'uva':{'p':0.7,'c':18,'g':0.2},'pesche':{'p':0.9,'c':9.5,'g':0.1},
+  'frutto':{'p':0.7,'c':13,'g':0.2},'frutta':{'p':0.7,'c':13,'g':0.2},
+  // Grassi & condimenti
+  'olio evo':{'p':0,'c':0,'g':100},'olio di oliva':{'p':0,'c':0,'g':100},
+  'olio di semi':{'p':0,'c':0,'g':100},'olio':{'p':0,'c':0,'g':100},
+  'burro di arachidi':{'p':25,'c':20,'g':50},'miele':{'p':0.3,'c':82,'g':0},
+  'marmellata':{'p':0.4,'c':65,'g':0.1},'nutella':{'p':6,'c':57,'g':31},'maionese':{'p':1.5,'c':2.5,'g':75},
+  // Cioccolato
+  'cioccolato fondente 85%':{'p':9,'c':20,'g':49},'cioccolato fondente 70%':{'p':7.8,'c':30,'g':43},
+  'cioccolato fondente':{'p':5.5,'c':47,'g':32},'cioccolato al latte':{'p':7.7,'c':56,'g':31},
+  'cioccolato':{'p':7.7,'c':56,'g':31},'cacao amaro':{'p':20,'c':55,'g':11},'cacao':{'p':20,'c':55,'g':11},
+  // Frutta secca
+  'mandorle':{'p':21,'c':22,'g':50},'noci':{'p':15,'c':14,'g':65},'nocciole':{'p':15,'c':17,'g':61},
+  'anacardi':{'p':18,'c':30,'g':44},'pistacchi':{'p':20,'c':28,'g':45},
+  'arachidi':{'p':26,'c':16,'g':49},'semi di chia':{'p':17,'c':42,'g':31},
+  'frutta secca':{'p':15,'c':20,'g':55},
+  // Integratori
+  'whey protein':{'p':75,'c':10,'g':5},'proteine in polvere':{'p':75,'c':10,'g':5},
+  'barretta proteica':{'p':25,'c':40,'g':8},'barretta':{'p':25,'c':40,'g':8},
+};
+const MACRO_DB_SORTED = Object.entries(MACRO_DB).sort((a,b) => b[0].length - a[0].length);
+
 function _dbLookup(str) {
   for (const [key, val] of KCAL_DB_SORTED) {
     if (str.includes(key)) return val;
   }
   return 0;
 }
+function _macroLookup(str) {
+  for (const [key, val] of MACRO_DB_SORTED) {
+    if (str.includes(key)) return val;
+  }
+  return null;
+}
 
-// Calcola kcal da stringa alimento es. "150g latte intero", "2 uova", "3 fette pane"
-function calcKcalFromFood(foodStr) {
-  if (!foodStr || foodStr === 'Giorno libero' || foodStr === 'Libero') return 0;
-
-  // Kcal esplicite: "500 kcal"
-  const explicitKcal = foodStr.match(/(\d+(?:\.\d+)?)\s*kcal/i);
-  if (explicitKcal) return parseFloat(explicitKcal[1]);
-
+// Helper condiviso: estrae grammi, foodRaw, foodClean da una stringa alimento
+function _parseFoodGrams(foodStr) {
   const str = foodStr.toLowerCase().trim();
-
-  // Estrai quantità e unità
   const qtyMatch = str.match(/^(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l|pz|fett[ae]|scatolett[ae]|bust[ae]|pacco|pacchetto|porzione)?(?:\s|$)/i);
-  if (!qtyMatch) return 0;
-
+  if (!qtyMatch) return null;
   let qty = parseFloat(qtyMatch[1].replace(',', '.'));
   const unit = (qtyMatch[2] || 'g').toLowerCase();
-
-  // foodRaw: parte descrittiva con aggettivi (magro, cotto…) — usata per match specifici
-  // foodClean: stessa parte senza stopword connettive
   const foodRaw   = str.slice(qtyMatch[0].length).trim();
   const foodClean = foodRaw.replace(STOPWORDS, ' ').replace(/\s+/g, ' ').trim();
-
-  // Lookup: prima prova con testo completo (cattura "macinato manzo magro"),
-  // poi senza stopword, poi sull'intera stringa, fallback 150
-  const kcalPer100 = _dbLookup(foodRaw) || _dbLookup(foodClean) || _dbLookup(str) || 150;
-
-  // Converti unità in grammi
   if (unit === 'kg') qty *= 1000;
   else if (unit === 'l') qty *= 1000;
-  else if (unit === 'ml') { /* 1 ml ≈ 1g */ }
   else if (unit === 'pz') {
     let gPerPz = 50;
     for (const [food, w] of Object.entries(PZ_WEIGHTS)) {
@@ -203,26 +285,50 @@ function calcKcalFromFood(foodStr) {
     qty *= gPerPz;
   }
   else if (unit === 'fetta' || unit === 'fette') {
-    const isBiscuit = foodRaw.includes('biscott') || foodRaw.includes('gallette') || foodRaw.includes('biscottate');
-    qty *= isBiscuit ? 10 : 35;
+    qty *= (foodRaw.includes('biscott') || foodRaw.includes('gallette') || foodRaw.includes('biscottate')) ? 10 : 35;
   }
   else if (unit === 'scatoletta' || unit === 'scatolette') {
     qty *= (foodRaw.includes('tonno') || str.includes('tonno')) ? 80 : 120;
   }
-  else if (unit === 'busta' || unit === 'buste') {
-    qty *= 100;
-  }
+  else if (unit === 'busta' || unit === 'buste') qty *= 100;
   else if (unit === 'pacco' || unit === 'pacchetto') {
-    // Cerca peso specifico per prodotto noto, altrimenti 100g
     let gPerPacco = 100;
     for (const [prod, w] of Object.entries(PACCO_WEIGHTS)) {
       if (foodRaw.includes(prod) || str.includes(prod)) { gPerPacco = w; break; }
     }
     qty *= gPerPacco;
   }
-  else if (unit === 'porzione') {
-    qty *= 150;
-  }
+  else if (unit === 'porzione') qty *= 150;
+  return { grams: qty, foodRaw, foodClean, str };
+}
 
-  return Math.round((qty * kcalPer100) / 100);
+// Calcola kcal da stringa alimento es. "150g latte intero", "2 uova", "3 fette pane"
+function calcKcalFromFood(foodStr) {
+  if (!foodStr || foodStr === 'Giorno libero' || foodStr === 'Libero') return 0;
+  const explicit = foodStr.match(/(\d+(?:\.\d+)?)\s*kcal/i);
+  if (explicit) return parseFloat(explicit[1]);
+  const p = _parseFoodGrams(foodStr);
+  if (!p) return 0;
+  const kcalPer100 = _dbLookup(p.foodRaw) || _dbLookup(p.foodClean) || _dbLookup(p.str) || 150;
+  return Math.round((p.grams * kcalPer100) / 100);
+}
+
+// Calcola macronutrienti da stringa alimento → { kcal, p, c, g }
+function calcMacrosFromFood(foodStr) {
+  if (!foodStr || foodStr === 'Giorno libero' || foodStr === 'Libero') return {kcal:0,p:0,c:0,g:0};
+  const explicit = foodStr.match(/(\d+(?:\.\d+)?)\s*kcal/i);
+  if (explicit) return {kcal:parseFloat(explicit[1]),p:0,c:0,g:0};
+  const parsed = _parseFoodGrams(foodStr);
+  if (!parsed) return {kcal:0,p:0,c:0,g:0};
+  const kcalPer100 = _dbLookup(parsed.foodRaw) || _dbLookup(parsed.foodClean) || _dbLookup(parsed.str) || 150;
+  const kcal = Math.round((parsed.grams * kcalPer100) / 100);
+  const macros = _macroLookup(parsed.foodRaw) || _macroLookup(parsed.foodClean) || _macroLookup(parsed.str);
+  if (!macros) return {kcal,p:0,c:0,g:0};
+  const f = parsed.grams / 100;
+  return {
+    kcal,
+    p: Math.round(macros.p * f * 10) / 10,
+    c: Math.round(macros.c * f * 10) / 10,
+    g: Math.round(macros.g * f * 10) / 10,
+  };
 }

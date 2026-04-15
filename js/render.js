@@ -160,6 +160,16 @@ function updateProgress() {
 
 
 
+  // Macro giornaliere pianificate
+  const mr = document.getElementById('macroRow');
+  if (mr) {
+    const mac = calcDayMacros(currentDay);
+    if (mac.p > 0 || mac.c > 0 || mac.g > 0) {
+      mr.innerHTML = `<div class="macro-row"><span class="macro-pill macro-p">P&nbsp;${mac.p}g</span><span class="macro-pill macro-c">C&nbsp;${mac.c}g</span><span class="macro-pill macro-g">G&nbsp;${mac.g}g</span></div>`;
+      mr.style.display = '';
+    } else { mr.style.display = 'none'; }
+  }
+
   // Dot: solo nome, niente numeri
   document.getElementById('mealDots').innerHTML = MEAL_KEYS.map(k => {
     const d = isDone(currentDay, k);
@@ -195,6 +205,22 @@ function calcBMR(pd) {
 function calcAvgDailyKcal() {
   const kcals = Array.from({length:7}, (_,d) => calcTotalDayKcal(d)).filter(k => k > 0);
   return kcals.length ? Math.round(kcals.reduce((a,b) => a+b, 0) / kcals.length) : 0;
+}
+function calcDayMacros(dayIndex) {
+  const t = {kcal:0,p:0,c:0,g:0};
+  MEAL_KEYS.forEach(k => {
+    (state.mealData.days[dayIndex]?.[k]||[]).forEach(f => {
+      const m = calcMacrosFromFood(f);
+      t.kcal+=m.kcal; t.p+=m.p; t.c+=m.c; t.g+=m.g;
+    });
+  });
+  return {kcal:t.kcal, p:Math.round(t.p*10)/10, c:Math.round(t.c*10)/10, g:Math.round(t.g*10)/10};
+}
+function calcWeekAvgMacros() {
+  let count=0; const s={kcal:0,p:0,c:0,g:0};
+  for(let d=0;d<7;d++){const m=calcDayMacros(d);if(m.kcal>0){s.kcal+=m.kcal;s.p+=m.p;s.c+=m.c;s.g+=m.g;count++;}}
+  if(!count) return {kcal:0,p:0,c:0,g:0};
+  return {kcal:Math.round(s.kcal/count),p:Math.round(s.p/count),c:Math.round(s.c/count),g:Math.round(s.g/count)};
 }
 
 function renderTrackerAnalytics() {
@@ -362,9 +388,31 @@ function renderTrackerAnalytics() {
   const noProfile = !pd || (!pd.peso && !pd.eta);
   const noProfileNote = noProfile ? `<div class="analytics-note">Aggiungi i tuoi dati fisici in Impostazioni per vedere BMR, TDEE e la proiezione obiettivo.</div>` : '';
 
+  // Macro medie settimanali
+  const wm = calcWeekAvgMacros();
+  const macroTotal = wm.p * 4 + wm.c * 4 + wm.g * 9;
+  const pPct = macroTotal > 0 ? Math.round(wm.p * 4 / macroTotal * 100) : 0;
+  const cPct = macroTotal > 0 ? Math.round(wm.c * 4 / macroTotal * 100) : 0;
+  const gPct = macroTotal > 0 ? Math.round(wm.g * 9 / macroTotal * 100) : 0;
+  const macroCardHTML = wm.p > 0 || wm.c > 0 ? `
+    <div class="analytics-card">
+      <div class="analytics-card-title">Macro medi/die · scheda</div>
+      <div class="macro-stats-row">
+        <div class="macro-stat-block macro-p"><div class="macro-stat-val">${wm.p}g</div><div class="macro-stat-lbl">Proteine · ${pPct}%</div></div>
+        <div class="macro-stat-block macro-c"><div class="macro-stat-val">${wm.c}g</div><div class="macro-stat-lbl">Carbo · ${cPct}%</div></div>
+        <div class="macro-stat-block macro-g"><div class="macro-stat-val">${wm.g}g</div><div class="macro-stat-lbl">Grassi · ${gPct}%</div></div>
+      </div>
+      <div class="macro-split-bar">
+        <div class="macro-split-p" style="width:${pPct}%"></div>
+        <div class="macro-split-c" style="width:${cPct}%"></div>
+        <div class="macro-split-g" style="width:${gPct}%"></div>
+      </div>
+    </div>` : '';
+
   el.innerHTML = `
     ${noProfileNote}
     ${statsHTML ? `<div class="analytics-section-title">Alimentazione</div>${statsHTML}` : ''}
+    ${macroCardHTML}
     ${projHTML}
     <div class="analytics-card">
       <div class="analytics-card-title">Kcal giornaliere · scheda</div>
