@@ -674,76 +674,120 @@ Chiave gym:    "gym_d{dayIndex}_{exIndex}" es. "gym_d1_2"</div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════ -->
-<h2 id="s-improve">10 · Miglioramenti possibili</h2>
+<h2 id="s-improve">10 · Stato miglioramenti</h2>
+
+<div class="info-box info" style="margin-bottom:18px">
+  Tutti i miglioramenti della roadmap originale sono stati implementati. Di seguito lo stato attuale e i successivi possibili sviluppi.
+</div>
+
+<!-- ── IMPLEMENTATI ── -->
+<div class="improve-card" style="border-color:rgba(184,245,102,.25);background:rgba(184,245,102,.04)">
+  <div class="improve-title">
+    ✓ Macronutrienti (P / C / G)
+    <span class="priority p-high" style="background:rgba(184,245,102,.15);color:var(--green)">Implementato</span>
+  </div>
+  <div class="improve-body">
+    <code>MACRO_DB</code> con ~120 voci · <code>MACRO_DB_SORTED</code> per match più-specifico-prima · <code>calcMacrosFromFood()</code> restituisce <code>{kcal,p,c,g}</code> per qualsiasi stringa alimento.
+    <br>Tracker mostra distribuzione settimanale P/C/G con barra percentuale e medie giornaliere.
+    Pillole macro visibili anche nella home accanto al progresso kcal.
+  </div>
+</div>
+
+<div class="improve-card" style="border-color:rgba(184,245,102,.25);background:rgba(184,245,102,.04)">
+  <div class="improve-title">
+    ✓ Peso corporeo progressivo e andamento reale
+    <span class="priority p-high" style="background:rgba(184,245,102,.15);color:var(--green)">Implementato</span>
+  </div>
+  <div class="improve-body">
+    <code>state.weightLog: [{date, kg}]</code> · input rapido peso (card compatta in home) · grafico peso ultime 30 rilevazioni nel tracker.
+    <br><code>logWeight()</code> aggiorna anche <code>profileData.peso</code> (usato per BMR/proiezione) al salvataggio.
+  </div>
+</div>
+
+<div class="improve-card" style="border-color:rgba(184,245,102,.25);background:rgba(184,245,102,.04)">
+  <div class="improve-title">
+    ✓ Progressione carichi palestra
+    <span class="priority p-med" style="background:rgba(184,245,102,.15);color:var(--green)">Implementato</span>
+  </div>
+  <div class="improve-body">
+    <code>state.gymHistory: {'YYYY-MM-DD': {'Nome esercizio': {kg, rip, serie}}}</code> · bottone "Registra" nel pannello allenamento giornaliero · sezione "Progressione carichi" nel tracker con grafico Canvas per ogni esercizio (ultime 10 sessioni).
+    <br><code>getExerciseHistory(nameLower)</code> restituisce array cronologico per charting.
+  </div>
+</div>
+
+<div class="improve-card" style="border-color:rgba(184,245,102,.25);background:rgba(184,245,102,.04)">
+  <div class="improve-title">
+    ✓ Calibrazione TDEE su dati reali
+    <span class="priority p-med" style="background:rgba(184,245,102,.15);color:var(--green)">Implementato</span>
+  </div>
+  <div class="improve-body">
+    <code>calcCalibratedTDEE()</code>: richiede ≥7 giorni di <code>weightLog</code>. Formula:<br>
+    <code>TDEE_reale = avgKcal − (ΔkgTotale × 7700 / giorni)</code>
+    <br>Se disponibile, sovrascrive il TDEE teorico Mifflin nel tracker con badge "✓ calibrato".
+  </div>
+</div>
+
+<div class="improve-card" style="border-color:rgba(184,245,102,.25);background:rgba(184,245,102,.04)">
+  <div class="improve-title">
+    ✓ DB sinonimi e alias
+    <span class="priority p-low" style="background:rgba(184,245,102,.15);color:var(--green)">Implementato</span>
+  </div>
+  <div class="improve-body">
+    <code>ALIASES</code>: ~45 voci che mappano varianti di scrittura alla chiave canonica del DB (es. <code>'wurst'→'wurstel'</code>, <code>'carne macinata'→'macinato manzo'</code>, <code>'olio extravergine'→'olio evo'</code>, <code>'skyr'→'yogurt greco 0%'</code>).
+    <br><code>_aliasNormalize(str)</code> applicata come passo intermedio nel lookup — <em>foodRaw → foodClean → foodAliased → str → 150 kcal fallback</em>.
+  </div>
+</div>
+
+<!-- ── NUOVI SVILUPPI POSSIBILI ── -->
+<h3 style="margin:28px 0 14px;color:var(--mid);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:8px">Prossimi sviluppi potenziali</h3>
 
 <div class="improve-card">
   <div class="improve-title">
-    Macronutrienti (proteine, carboidrati, grassi)
+    Ricette personalizzate salvabili
     <span class="priority p-high">Alta priorità</span>
   </div>
   <div class="improve-body">
-    Attualmente si calcolano solo le kcal totali. Aggiungere un secondo database con i macro per 100g (P/C/G) permetterebbe di mostrare la distribuzione nutrizionale della scheda.
-    <strong>Cosa serve:</strong> tabella MACRO_DB con { kcal, p, c, g } per alimento · aggiornare <code>calcKcalFromFood</code> a <code>calcMacroFromFood</code> · grafici macro nel tracker.
-    <br><strong>Impatto:</strong> enorme per chi segue target proteici (es. 2g/kg per massa).
+    Permettere di salvare un insieme di alimenti come "ricetta" con nome (es. "Pasta tonno zucchine") e inserirla nella scheda come voce singola.
+    <br><strong>Cosa serve:</strong> <code>state.recipes: {nome: [food1, food2, ...]}</code> · UI per creare/modificare ricette · lookup che espande la voce prima del calcolo kcal/macro.
+    <br><strong>Impatto:</strong> meno reinserimenti manuali per chi mangia spesso le stesse combinazioni.
   </div>
 </div>
 
 <div class="improve-card">
   <div class="improve-title">
-    Peso corporeo progressivo e andamento reale
-    <span class="priority p-high">Alta priorità</span>
-  </div>
-  <div class="improve-body">
-    La proiezione usa il peso del profilo come punto fisso. Se l'utente aggiornasse il peso periodicamente (es. ogni settimana), la proiezione si aggiornebb dinamicamente e si potrebbe confrontare con la curva teorica.
-    <strong>Cosa serve:</strong> array <code>weightLog: [{date, kg}]</code> · input rapido peso in home o tracker · overlay grafico reale vs proiezione.
-  </div>
-</div>
-
-<div class="improve-card">
-  <div class="improve-title">
-    Progressione dei carichi in palestra
+    Variabilità kcal — cicli alta/bassa
     <span class="priority p-med">Media priorità</span>
   </div>
   <div class="improve-body">
-    Il volume attuale è statico (una scheda fissa). Un sistema di progressione permetterebbe di tracciare se i pesi aumentano settimana per settimana.
-    <strong>Cosa serve:</strong> struttura dati <code>gymHistory[week][dayIndex][exIndex] = {kg, rip}</code> · sezione "log allenamento" nel tracker · grafico progressione per esercizio.
+    Giorni di allenamento e riposo spesso richiedono kcal diverse (es. +200 kcal nei giorni di palestra). Attualmente il target è fisso.
+    <br><strong>Cosa serve:</strong> campo "kcal bonus" per tipo di giornata (allenamento / riposo / libero) nel profilo · <code>calcDayTarget(dayIndex)</code> che distingue la tipologia.
   </div>
 </div>
 
 <div class="improve-card">
   <div class="improve-title">
-    Calibrazione TDEE su dati reali (peso + kcal)
-    <span class="priority p-med">Media priorità</span>
-  </div>
-  <div class="improve-body">
-    Il TDEE calcolato da Mifflin-St Jeor + moltiplicatore è una stima. Con 2–3 settimane di dati reali (peso giornaliero + kcal rispettate) si può calcolare il TDEE effettivo dell'utente.
-    <strong>Formula:</strong> se peso stabile → TDEE ≈ media kcal consumate · se cambia → aggiusta di 7700 kcal/kg di variazione.
-    <strong>Impatto:</strong> proiezioni molto più accurate, personalizzate sull'individuo.
-  </div>
-</div>
-
-<div class="improve-card">
-  <div class="improve-title">
-    Peso sgocciolato automatico per prodotti in scatola / busta
+    Peso sgocciolato per prodotti in scatola
     <span class="priority p-low">Bassa priorità</span>
   </div>
   <div class="improve-body">
-    Attualmente "1 scatoletta tonno" = 80g sgocciolato (hardcoded). Prodotti diversi (polpa di pomodoro, legumi in scatola) hanno pesi diversi. Estendere PACCO_WEIGHTS / SCATOLETTA_WEIGHTS con più prodotti noti.
+    "1 scatoletta tonno" = 80g sgocciolato (hardcoded). Prodotti come legumi in scatola e polpa di pomodoro hanno pesi diversi.
+    <br><strong>Cosa serve:</strong> estendere <code>SCATOLETTA_WEIGHTS</code> con più prodotti noti (ceci ≈140g, lenticchie ≈120g, fagioli ≈130g).
   </div>
 </div>
 
 <div class="improve-card">
   <div class="improve-title">
-    DB locale con sinonimi e abbreviazioni
+    Scan barcode tramite fotocamera
     <span class="priority p-low">Bassa priorità</span>
   </div>
   <div class="improve-body">
-    Voci come "wurst", "würstel", "lonza", "coppa", "prosciutto di Parma" possono non matchare il DB attuale. Un dizionario di sinonimi/alias (es. <code>ALIASES = { 'wurst': 'wurstel', 'carne macinata': 'macinato manzo' }</code>) ridurrebbe i fallback a 150 kcal.
+    Leggere EAN del prodotto e cercarne i valori nutrizionali via API Open Food Facts. Azzererebbe i fallback a 150 kcal per prodotti confezionati non nel DB locale.
+    <br><strong>Cosa serve:</strong> <code>QuaggaJS</code> o <code>ZXing</code> per lettura barcode · chiamata API OpenFoodFacts · cache locale dei prodotti scansionati.
   </div>
 </div>
 
 <div class="info-box info" style="margin-top:20px">
-  <strong>Come verificare un calcolo sospetto:</strong> nella scheda, scrivi l'alimento e controlla le kcal calcolate nel pannello di modifica inline. Se ti sembra errato, confronta con la tabella sopra e verifica che la stringa faccia match con la chiave giusta.
+  <strong>Come verificare un calcolo sospetto:</strong> nella scheda, scrivi l'alimento e controlla le kcal calcolate nel pannello di modifica inline. Se ti sembra errato, confronta con la tabella sopra e verifica che la stringa faccia match con la chiave giusta. In alternativa, aggiungi una voce a <code>ALIASES</code> in <code>js/config.js</code> per normalizzare la variante di scrittura.
 </div>
 
 <script>
