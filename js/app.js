@@ -325,6 +325,7 @@ async function saveSettingsProfile() {
   const pd = readProfileFromDOM('settings');
   state.profileData = pd;
   await saveToCloud();
+  _refreshTracker();
   document.getElementById('settingsProfileSuccess').classList.add('show');
   setTimeout(() => document.getElementById('settingsProfileSuccess').classList.remove('show'), 2000);
 }
@@ -521,7 +522,7 @@ function confirmImport() {
   const generatedShop = generateShopFromMeals(state.mealData);
   if (generatedShop.length > 0) state.shopData = generatedShop;
   state.schedaLoadedAt = new Date().toISOString();
-  save(); renderMeals(); updateProgress(); renderMealEditor(); cancelImport();
+  save(); renderMeals(); updateProgress(); renderMealEditor(); cancelImport(); _refreshTracker();
   showToast('Scheda e lista spesa aggiornate! ✓');
 }
 
@@ -657,6 +658,7 @@ function confirmGymImport(ctx) {
   if (ctx !== 'gym-welcome') {
     renderHomePalestra();
   }
+  _refreshTracker();
 }
 
 // ── AGENT EDIT ────────────────────────────────────────────
@@ -700,7 +702,7 @@ Restituisci SOLO il JSON, niente altro.`;
     } else if (parsed.status === 'ok' && parsed.data?.times && parsed.data?.days) {
       state.mealData = parsed.data;
       save();
-      renderMeals(); updateProgress(); renderSettingsDayTabs(); renderMealEditor();
+      renderMeals(); updateProgress(); renderSettingsDayTabs(); renderMealEditor(); _refreshTracker();
       input.value = '';
       statusEl.innerHTML = `✓ ${parsed.summary || 'Modifica applicata!'}`;
       statusEl.className = 'agent-edit-status success';
@@ -758,7 +760,7 @@ Restituisci SOLO il JSON, niente altro.`;
       Object.keys(parsed.data).forEach(k => { fixed[parseInt(k)] = parsed.data[k]; });
       state.gymData.giorni = fixed;
       save();
-      renderGymEditorDayTabs(); renderGymEditor(); renderHomePalestra();
+      renderGymEditorDayTabs(); renderGymEditor(); renderHomePalestra(); _refreshTracker();
       input.value = '';
       statusEl.innerHTML = `✓ ${parsed.summary || 'Modifica applicata!'}`;
       statusEl.className = 'agent-edit-status success';

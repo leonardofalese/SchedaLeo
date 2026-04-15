@@ -465,6 +465,10 @@ function toggleGymExTracker(d,i) {
   renderHomePalestra();
 }
 
+function _refreshTracker() {
+  if (document.getElementById('view-tracker')?.classList.contains('active')) renderTracker();
+}
+
 function renderTracker() {
   renderTrackerAnalytics();
   document.getElementById('trackerContent').innerHTML = GIORNI.map((g,di) => {
@@ -623,7 +627,7 @@ function saveMeals() {
   });
   const generated = generateShopFromMeals(state.mealData);
   if (generated.length > 0) { state.shopData = generated; renderShopEditor(); }
-  save(); renderMeals(); updateProgress(); showToast('Pasti e lista spesa aggiornati!');
+  save(); renderMeals(); updateProgress(); _refreshTracker(); showToast('Pasti e lista spesa aggiornati!');
 }
 
 function renderShopEditor() {
@@ -944,6 +948,7 @@ function saveGymExercises() {
   save();
   renderGymEditorDayTabs();
   renderHomePalestra();
+  _refreshTracker();
   showToast('Scheda palestra salvata!');
 }
 
