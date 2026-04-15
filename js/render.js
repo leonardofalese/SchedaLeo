@@ -223,16 +223,48 @@ function calcDayMacros(dayIndex) {
 // Se peso stabile → TDEE ≈ kcal medie; se aumenta → TDEE < kcal medie ecc.
 function calcCalibratedTDEE() {
   const wlog = (state.weightLog || []).slice().sort((a,b) => a.date.localeCompare(b.date));
-  if (wlog.length < 7) return null; // minimo 7 misure
+  if (wlog.length < 5) return null; // minimo 5 misure
   const first = wlog[0], last = wlog[wlog.length - 1];
   const days = Math.round((new Date(last.date) - new Date(first.date)) / 86400000);
-  if (days < 7) return null;
-  const kgDelta = last.kg - first.kg;           // + = aumentato, - = calato
-  const kcalDeltaPerDay = (kgDelta * 7700) / days; // kcal/die imputabili alla variazione
+  if (days < 14) return null; // 14 giorni = fonte di verità affidabile
+  const kgDelta = last.kg - first.kg;
+  const kcalDeltaPerDay = (kgDelta * 7700) / days;
   const avgKcal = calcAvgDailyKcal();
   if (!avgKcal) return null;
   const tdeeReal = Math.round(avgKcal - kcalDeltaPerDay);
-  return tdeeReal > 500 ? tdeeReal : null; // sanity check
+  return tdeeReal > 500 ? tdeeReal : null;
+}
+
+// Controlla se il bilancio teorico (Mifflin) diverge ≥15% dalla variazione di peso reale.
+// Restituisce { divergePct, theoreticalBal, realBal, days } oppure null se i dati non bastano.
+function checkTDEEDivergence() {
+  const wlog = (state.weightLog || []).slice().sort((a,b) => a.date.localeCompare(b.date));
+  if (wlog.length < 5) return null;
+  const first = wlog[0], last = wlog[wlog.length - 1];
+  const days = Math.round((new Date(last.date) - new Date(first.date)) / 86400000);
+  if (days < 7) return null;
+  const kgDelta = last.kg - first.kg;
+  const realBal = Math.round((kgDelta * 7700) / days); // kcal/die implicite dal peso
+
+  const avgKcal = calcAvgDailyKcal();
+  const pd = state.profileData;
+  if (!avgKcal || !pd) return null;
+  const bmr = calcBMR(pd);
+  if (!bmr) return null;
+
+  const gymDays   = Array.from({length:7}, (_,d) => state.gymData.giorni[d] || {nome:'', esercizi:[]});
+  const trainDays = gymDays.filter(d => (d.esercizi||[]).length > 0 && (d.nome||'').toLowerCase() !== 'riposo').length;
+  const vol       = gymDays.reduce((a,d) => a + (d.esercizi||[]).reduce((b,ex) => {
+    const kg = parseFloat(ex.kg), rip = parseInt((ex.ripetizioni||'').split('-')[0]);
+    return (!isNaN(kg)&&kg>0&&!isNaN(rip)&&rip>0) ? b+(parseInt(ex.serie)||0)*rip*kg : b;
+  }, 0), 0);
+  const theoreticalBal = Math.round(avgKcal - bmr * calcActivityMultiplier(trainDays, vol));
+
+  // Riferimento: il valore reale (almeno 100 kcal per evitare rumore)
+  const ref = Math.max(Math.abs(realBal), 100);
+  const divergePct = Math.round(Math.abs(theoreticalBal - realBal) / ref * 100);
+
+  return divergePct >= 15 ? { divergePct, theoreticalBal, realBal, days } : null;
 }
 
 function calcWeekAvgMacros() {
@@ -315,7 +347,22 @@ function renderTrackerAnalytics() {
     const balClass = balance === null ? '' : balance > 0 ? ' surplus' : ' deficit';
     const balText  = balance === null ? '—' : (balance > 0 ? '+' : '') + balance;
 
-    statsHTML = `<div class="analytics-stats-row">
+    const diverg = checkTDEEDivergence();
+    const divergHTML = diverg ? (() => {
+      const realDir  = diverg.realBal > 0 ? 'surplus' : 'deficit';
+      const theoDir  = diverg.theoreticalBal > 0 ? 'surplus' : 'deficit';
+      const suggest  = Math.abs(diverg.realBal) > Math.abs(diverg.theoreticalBal)
+        ? 'Il tuo metabolismo reale è più lento del modello.'
+        : 'Il tuo metabolismo reale è più veloce del modello.';
+      return `<div class="analytics-warn tdee-diverge" style="margin-bottom:10px">
+        ⚠ <strong>TDEE impreciso</strong> (divergenza ${diverg.divergePct}% su ${diverg.days} giorni)<br>
+        Modello: <strong>${diverg.theoreticalBal > 0 ? '+' : ''}${diverg.theoreticalBal} kcal/die</strong> (${theoDir}) ·
+        Peso reale: <strong>${diverg.realBal > 0 ? '+' : ''}${diverg.realBal} kcal/die</strong> (${realDir})<br>
+        <span style="font-size:11px;opacity:.8">${suggest}${diverg.days >= 14 ? ' TDEE calibrato in uso ✓' : ' Aggiungi peso ogni giorno per calibrare (min 14 gg).'}</span>
+      </div>`;
+    })() : '';
+
+    statsHTML = `${divergHTML}<div class="analytics-stats-row">
       <div class="analytics-stat"><div class="analytics-stat-val">${bmr||'—'}</div><div class="analytics-stat-label">BMR kcal</div></div>
       <div class="analytics-stat"><div class="analytics-stat-val">${tdee||'—'}</div><div class="analytics-stat-label">${tdeeLabel}</div></div>
       <div class="analytics-stat"><div class="analytics-stat-val">${avgKcal||'—'}</div><div class="analytics-stat-label">Scheda/die</div></div>
