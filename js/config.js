@@ -158,6 +158,60 @@ const PACCO_WEIGHTS = {
 // Stopword solo connettive — NON aggettivi come magro/cotto che servono per il match
 const STOPWORDS = /\b(con|al|alla|allo|agli|alle|di|del|della|dello|in|no|senza|e)\b/g;
 
+// ── SINONIMI & ALIAS ─────────────────────────────────────
+// Mappa alias → chiave canonica del DB: riduce fallback a 150 kcal per varianti di scrittura
+const ALIASES = {
+  // Wurstel / varianti tedesche
+  'wurst': 'wurstel', 'würstel': 'wurstel', 'würstl': 'wurstel', 'frankfurter': 'wurstel', 'hot dog': 'wurstel',
+  // Macinato
+  'carne macinata': 'macinato manzo', 'carne trita': 'macinato manzo',
+  'macinata': 'macinato', 'tritata': 'macinato',
+  // Pollo / tacchino
+  'petto pollo': 'petto di pollo', 'fesa tacchino': 'petto di tacchino',
+  'fesa di tacchino': 'petto di tacchino',
+  // Salumi
+  'prosciutto di parma': 'prosciutto crudo', 'prosciutto san daniele': 'prosciutto crudo',
+  'coppa': 'prosciutto crudo', 'culatello': 'prosciutto crudo',
+  // Yogurt
+  'greek': 'yogurt greco', 'skyr': 'yogurt greco 0%', 'quark': 'yogurt greco 0%',
+  // Formaggi
+  'mozzarella fiordilatte': 'mozzarella', 'provola': 'mozzarella', 'scamorza': 'mozzarella',
+  'feta': 'mozzarella light', 'emmental': 'grana',
+  'philadelphia': 'fiocchi di latte', 'formaggio spalmabile': 'fiocchi di latte', 'cream cheese': 'fiocchi di latte',
+  // Avena / cereali
+  'fiocchi avena': 'fiocchi di avena', 'porridge': 'avena', 'oatmeal': 'avena',
+  // Riso
+  'riso bianco': 'riso', 'riso parboiled': 'riso', 'riso venere': 'riso integrale', 'riso nero': 'riso integrale',
+  'farro perlato': 'farro',
+  // Olio
+  'olio extravergine di oliva': 'olio evo', 'olio extravergine': 'olio evo', 'evoo': 'olio evo',
+  'olio oliva': 'olio evo',
+  // Pomodoro / passata
+  'passata di pomodoro': 'pomodori', 'passata': 'pomodori', 'pomodoro': 'pomodori',
+  'sugo di pomodoro': 'pomodori', 'pelati': 'pomodori',
+  // Legumi
+  'ceci in scatoletta': 'ceci cotti', 'fagioli in scatoletta': 'fagioli cotti',
+  'lenticchie in scatoletta': 'lenticchie cotte', 'lenticchie rosse': 'lenticchie',
+  // Tonno / pesce
+  'tonno al naturale': 'tonno in scatoletta', 'tonno in acqua': 'tonno in scatoletta',
+  // Cioccolato
+  'extra fondente': 'cioccolato fondente 85%', 'fondente 90%': 'cioccolato fondente 85%',
+  'fondente 80%': 'cioccolato fondente 70%',
+  // Frutta secca
+  'noci di cajù': 'anacardi', 'cajù': 'anacardi', 'noci pecan': 'noci', 'noci brasiliane': 'noci',
+  // Proteine
+  'whey': 'whey protein', 'proteine whey': 'whey protein',
+};
+const ALIASES_SORTED = Object.entries(ALIASES).sort((a, b) => b[0].length - a[0].length);
+
+function _aliasNormalize(str) {
+  let s = str;
+  for (const [alias, canonical] of ALIASES_SORTED) {
+    if (s.includes(alias)) return s.replace(alias, canonical);
+  }
+  return s;
+}
+
 // ── MACRO DATABASE (P/C/G per 100g · fonte USDA/INRAN) ────
 const MACRO_DB = {
   // Latticini
@@ -299,7 +353,8 @@ function _parseFoodGrams(foodStr) {
     qty *= gPerPacco;
   }
   else if (unit === 'porzione') qty *= 150;
-  return { grams: qty, foodRaw, foodClean, str };
+  const foodAliased = _aliasNormalize(foodClean);
+  return { grams: qty, foodRaw, foodClean, foodAliased, str };
 }
 
 // Calcola kcal da stringa alimento es. "150g latte intero", "2 uova", "3 fette pane"
@@ -309,7 +364,7 @@ function calcKcalFromFood(foodStr) {
   if (explicit) return parseFloat(explicit[1]);
   const p = _parseFoodGrams(foodStr);
   if (!p) return 0;
-  const kcalPer100 = _dbLookup(p.foodRaw) || _dbLookup(p.foodClean) || _dbLookup(p.str) || 150;
+  const kcalPer100 = _dbLookup(p.foodRaw) || _dbLookup(p.foodClean) || _dbLookup(p.foodAliased) || _dbLookup(p.str) || 150;
   return Math.round((p.grams * kcalPer100) / 100);
 }
 
@@ -320,9 +375,9 @@ function calcMacrosFromFood(foodStr) {
   if (explicit) return {kcal:parseFloat(explicit[1]),p:0,c:0,g:0};
   const parsed = _parseFoodGrams(foodStr);
   if (!parsed) return {kcal:0,p:0,c:0,g:0};
-  const kcalPer100 = _dbLookup(parsed.foodRaw) || _dbLookup(parsed.foodClean) || _dbLookup(parsed.str) || 150;
+  const kcalPer100 = _dbLookup(parsed.foodRaw) || _dbLookup(parsed.foodClean) || _dbLookup(parsed.foodAliased) || _dbLookup(parsed.str) || 150;
   const kcal = Math.round((parsed.grams * kcalPer100) / 100);
-  const macros = _macroLookup(parsed.foodRaw) || _macroLookup(parsed.foodClean) || _macroLookup(parsed.str);
+  const macros = _macroLookup(parsed.foodRaw) || _macroLookup(parsed.foodClean) || _macroLookup(parsed.foodAliased) || _macroLookup(parsed.str);
   if (!macros) return {kcal,p:0,c:0,g:0};
   const f = parsed.grams / 100;
   return {
