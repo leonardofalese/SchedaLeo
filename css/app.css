@@ -156,11 +156,6 @@ body{font-family:var(--font);color:var(--text)}
 .food-edit-list{display:flex;flex-direction:column;gap:6px}
 .food-edit-row-wrap{display:flex;flex-direction:column;gap:3px}
 .food-edit-row{display:flex;gap:6px;align-items:center}
-.food-hint{display:flex;align-items:center;gap:5px;font-size:11px;color:#ffaa55;padding:2px 6px;margin-left:2px;line-height:1.4;flex-wrap:wrap}
-.food-hint span{font-size:12px;flex-shrink:0}
-.food-hint strong{color:#ffcc88}
-.food-hint-btn{background:rgba(255,170,85,.15);border:1px solid rgba(255,170,85,.4);border-radius:4px;color:#ffaa55;font-size:11px;font-weight:700;padding:1px 8px;cursor:pointer;font-family:var(--font);line-height:1.6}
-.food-hint-btn:active{background:rgba(255,170,85,.35)}
 .food-edit-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;font-family:var(--font);font-size:12px;color:var(--text);outline:none}
 .food-edit-input:focus{border-color:var(--green)}
 .del-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-mid);font-size:16px;line-height:1;transition:all .15s}
@@ -362,12 +357,6 @@ body{font-family:var(--font);color:var(--text)}
 .day-warn-banner strong{font-size:12px;color:#ffaa55;display:block;margin-bottom:3px}
 .day-warn-list{font-size:11px;color:var(--text-mid);line-height:1.6}
 .day-warn-type{color:var(--text-soft)}
-/* SCHEDE AUTO CHECK BANNER */
-.schede-check-banner{background:rgba(255,170,85,.07);border:1px solid rgba(255,170,85,.2);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:16px}
-.schede-check-title{font-size:12px;color:#ffaa55;font-weight:700;margin-bottom:4px}
-.schede-check-list{font-size:11px;color:var(--text-mid);margin-bottom:10px;line-height:1.7}
-.schede-check-btn{background:rgba(255,170,85,.12);border:1px solid rgba(255,170,85,.3);border-radius:6px;color:#ffaa55;font-size:12px;font-weight:700;padding:6px 14px;cursor:pointer;font-family:var(--font)}
-.schede-check-btn:active{background:rgba(255,170,85,.25)}
 /* A CRUDO BADGE */
 .crudo-badge{display:inline-flex;align-items:center;font-size:9px;font-weight:700;background:rgba(255,170,85,.1);border:1px solid rgba(255,170,85,.25);color:#ffaa55;border-radius:20px;padding:2px 8px;margin-left:8px;vertical-align:middle;text-transform:uppercase;letter-spacing:.06em}
 /* AGENT EDIT */

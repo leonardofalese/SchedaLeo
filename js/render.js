@@ -33,9 +33,7 @@ function _dayHasWarnings(dayIndex) {
     return foods.some(f => {
       if (!f || /libero/i.test(f)) return false;
       const p = parseFood(f);
-      if (_isAmbiguousFood(p.name)) return true;
-      if (!p.qty && p.name) return true;
-      return false;
+      return !p.qty && !!p.name;
     });
   });
 }
@@ -50,20 +48,19 @@ function selectDay(i) { currentDay=i; renderDayNav(); renderMeals(); updateProgr
 
 function renderMeals() {
   const times = state.mealData.times;
-  // Warning banner per alimenti ambigui o senza quantità nel giorno corrente
+  // Warning banner — alimenti senza quantità
   const warnItems = [];
   MEAL_KEYS.forEach(k => {
     (state.mealData.days[currentDay]?.[k] || []).forEach(f => {
       if (!f || /libero/i.test(f)) return;
       const p = parseFood(f);
-      if (_isAmbiguousFood(p.name)) warnItems.push({ name: p.name, type: 'cotto/crudo' });
-      else if (!p.qty && p.name)   warnItems.push({ name: p.name, type: 'quantità' });
+      if (!p.qty && p.name) warnItems.push(p.name);
     });
   });
   const wb = document.getElementById('dayWarnBanner');
   if (wb) {
     if (warnItems.length > 0) {
-      wb.innerHTML = `<div class="day-warn-banner"><span class="day-warn-icon">⚠</span><div><strong>${warnItems.length} aliment${warnItems.length===1?'o richiede':'i richiedono'} attenzione</strong><div class="day-warn-list">${warnItems.map(x=>`${x.name} <span class="day-warn-type">(${x.type})</span>`).join(' · ')}</div></div></div>`;
+      wb.innerHTML = `<div class="day-warn-banner"><span class="day-warn-icon">⚠</span><div><strong>Grammi mancanti</strong><div class="day-warn-list">${warnItems.join(' · ')}</div></div></div>`;
       wb.style.display = '';
     } else {
       wb.style.display = 'none';
@@ -671,22 +668,6 @@ function renderSettingsDayTabs() {
   document.getElementById('settingsDayTabs').innerHTML=GIORNI_SHORT.map((g,i)=>`<button class="day-tab ${i===settingsDay?'active':''}" onclick="selectSettingsDay(${i})">${g}</button>`).join('');
 }
 function selectSettingsDay(i) { settingsDay=i; renderSettingsDayTabs(); renderMealEditor(); }
-// Alimenti ambigui crudo/cotto — chiavi che triggherano l'hint
-const _AMBIGUOUS_RE  = /\b(pasta|riso|pollo|tacchino|macinato|salmone|merluzzo|branzino|orata|bistecca|vitello|manzo|patate)\b/i;
-const _QUALIFIER_RE  = /\b(cott[oa]|crud[oa]|secca?|sgocciolat[oa]|affumicat[oa]|arrosto|integrale cott|basmati)\b/i;
-function _isAmbiguousFood(name) {
-  return _AMBIGUOUS_RE.test(name) && !_QUALIFIER_RE.test(name);
-}
-function checkFoodHint(k, i, val) {
-  const el = document.getElementById(`fh_${k}_${i}`);
-  if (el) el.style.display = _isAmbiguousFood(val) ? 'flex' : 'none';
-}
-function applyFoodQualifier(k, i, qualifier) {
-  const nameEl = document.getElementById(`fi-name_${k}_${i}`);
-  if (!nameEl) return;
-  nameEl.value = (nameEl.value.trim() + ' ' + qualifier).trim();
-  checkFoodHint(k, i, nameEl.value);
-}
 
 function renderMealEditor() {
   const times=state.mealData.times;
@@ -700,19 +681,11 @@ function renderMealEditor() {
       <div class="food-edit-list" id="foods_${k}">
         ${(dayData[k]||[]).map((f,i)=>{
           const p=parseFood(f);
-          const ambig = _isAmbiguousFood(p.name);
           return `<div class="food-edit-row-wrap">
             <div class="food-edit-row">
               <input class="shop-edit-qty" type="text" value="${p.qty.replace(/"/g,'&quot;')}" id="fi-qty_${k}_${i}" placeholder="150g">
-              <input class="food-edit-input" type="text" value="${p.name.replace(/"/g,'&quot;')}" id="fi-name_${k}_${i}" placeholder="alimento" oninput="checkFoodHint('${k}',${i},this.value)">
+              <input class="food-edit-input" type="text" value="${p.name.replace(/"/g,'&quot;')}" id="fi-name_${k}_${i}" placeholder="alimento">
               <button class="del-btn" onclick="delFood('${k}',${i})">×</button>
-            </div>
-            <div class="food-hint" id="fh_${k}_${i}" style="display:${ambig?'flex':'none'}">
-              <span>⚠</span> specifica
-              <button class="food-hint-btn" onclick="applyFoodQualifier('${k}',${i},'cotta')">cotto</button>
-              o
-              <button class="food-hint-btn" onclick="applyFoodQualifier('${k}',${i},'cruda')">crudo</button>
-              — il peso cambia le kcal
             </div>
           </div>`;
         }).join('')}

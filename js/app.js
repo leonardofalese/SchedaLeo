@@ -37,7 +37,7 @@ function switchSchedeTab(tab) {
   if (tabGym)  tabGym.classList.toggle('active',  tab === 'palestra');
   if (secAlim) secAlim.style.display = tab === 'alimentare' ? '' : 'none';
   if (secGym)  secGym.style.display  = tab === 'palestra'   ? '' : 'none';
-  if (tab === 'alimentare') { renderSettingsDayTabs(); renderMealEditor(); _schedeAutoCheck(); }
+  if (tab === 'alimentare') { renderSettingsDayTabs(); renderMealEditor(); }
   if (tab === 'palestra')   { renderGymEditorDayTabs(); renderGymEditor(); }
 }
 
@@ -661,50 +661,6 @@ function confirmGymImport(ctx) {
   _refreshTracker();
 }
 
-// ── SCHEDE AUTO CHECK ─────────────────────────────────────
-function _schedeAutoCheck() {
-  const banner = document.getElementById('schedeAutoCheckBanner');
-  if (!banner) return;
-  const GIORNI_NAMES = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
-  const issues = [];
-  for (let d = 0; d < 7; d++) {
-    MEAL_KEYS.forEach(k => {
-      (state.mealData.days[d]?.[k] || []).forEach(f => {
-        if (!f || /libero/i.test(f)) return;
-        const p = parseFood(f);
-        if (_isAmbiguousFood(p.name)) issues.push(`${p.name} (${GIORNI_NAMES[d]})`);
-      });
-    });
-  }
-  if (issues.length === 0) { banner.style.display = 'none'; return; }
-  banner.style.display = '';
-  banner.innerHTML = `<div class="schede-check-banner">
-    <div class="schede-check-title">⚠ ${issues.length} aliment${issues.length===1?'o senza':'i senza'} cotto/crudo nella scheda</div>
-    <div class="schede-check-list">${issues.slice(0,8).join(' · ')}${issues.length>8?` … +${issues.length-8} altri`:''}</div>
-    <button class="schede-check-btn" onclick="agentFixAmbiguous()">Correggi tutto con AI</button>
-  </div>`;
-}
-function agentFixAmbiguous() {
-  const input = document.getElementById('agentAlimInput');
-  if (!input) return;
-  const GIORNI_NAMES = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
-  const issues = [];
-  for (let d = 0; d < 7; d++) {
-    MEAL_KEYS.forEach(k => {
-      (state.mealData.days[d]?.[k] || []).forEach(f => {
-        if (!f || /libero/i.test(f)) return;
-        const p = parseFood(f);
-        if (_isAmbiguousFood(p.name)) issues.push(`${p.name} (${GIORNI_NAMES[d]})`);
-      });
-    });
-  }
-  // Pre-riempie l'input ma NON invia — l'utente decide cotto/crudo e manda lui
-  input.value = `Aggiungi cotto o crudo a questi alimenti: ${issues.join(', ')}`;
-  input.focus();
-  // Scorri fino all'input
-  input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
 // ── AGENT EDIT ────────────────────────────────────────────
 async function agentEditAlim() {
   const input   = document.getElementById('agentAlimInput');
@@ -722,8 +678,7 @@ async function agentEditAlim() {
 MAPPATURA GIORNI OBBLIGATORIA: "0"=Lunedì "1"=Martedì "2"=Mercoledì "3"=Giovedì "4"=Venerdì "5"=Sabato "6"=Domenica
 Se la modifica è piccola (max 5 alimenti, orari, quantità, 1-2 giorni), rispondi SOLO con:
 {"status":"ok","summary":"breve descrizione della modifica","data":{"times":{...},"days":{"0":{...},...,"6":{...}}}}
-ECCEZIONE: le modifiche che aggiungono solo "cotto/cotta/crudo/cruda" a più alimenti su più giorni sono SEMPRE permesse — non restituire mai too_complex per questo tipo di modifica.
-Se troppo grande o riguarda tutta la settimana (salvo eccezione sopra), rispondi SOLO con: {"status":"too_complex"}
+Se troppo grande o riguarda tutta la settimana, rispondi SOLO con: {"status":"too_complex"}
 Restituisci SOLO il JSON, niente altro.`;
 
   try {
