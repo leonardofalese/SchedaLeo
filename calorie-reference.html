@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riferimento Calcolo Calorie</title>
+<style>
+  :root { --green: #b8f566; --bg: #0a0a0a; --card: #141414; --border: #222; --text: #f0f0f0; --soft: #888; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; padding: 24px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  h1 em { color: var(--green); font-style: normal; }
+  .sub { color: var(--soft); font-size: 13px; margin-bottom: 32px; }
+  h2 { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--soft); margin: 28px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .formula { font-family: 'Courier New', monospace; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 12px 16px; margin: 8px 0; font-size: 12px; line-height: 1.8; }
+  .formula .hl { color: var(--green); }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--soft); padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 8px; border-bottom: 1px solid #1a1a1a; font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  td.kcal { font-family: monospace; color: var(--green); text-align: right; }
+  td.note { color: var(--soft); font-size: 11px; }
+  .cat-row td { background: #0f0f0f; color: var(--soft); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 8px; }
+  .unit-table td:first-child { font-family: monospace; color: var(--green); }
+  .example { background: #0f1a0a; border: 1px solid rgba(184,245,102,.2); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+  .example-input { font-family: monospace; color: var(--green); font-size: 14px; margin-bottom: 8px; }
+  .example-steps { color: var(--soft); font-size: 12px; line-height: 1.8; }
+  .example-steps span { color: var(--text); }
+  .example-result { font-size: 16px; font-weight: 700; color: var(--green); margin-top: 8px; }
+  .warn { background: rgba(255,140,66,.08); border: 1px solid rgba(255,140,66,.2); border-radius: 6px; padding: 10px 14px; color: #ffaa55; font-size: 12px; margin-bottom: 16px; }
+  .search-wrap { margin-bottom: 16px; }
+  #searchInput { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 13px; width: 100%; outline: none; }
+  #searchInput:focus { border-color: var(--green); }
+  .hidden { display: none; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px; }
+  .badge-new { background: rgba(184,245,102,.15); color: var(--green); }
+  .badge-fix { background: rgba(100,180,255,.15); color: #64b4ff; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>Scheda<em>Alimentare</em> · Riferimento Calorie</h1>
+<div class="sub">Come vengono calcolate le kcal per ogni alimento — ultimo aggiornamento DB</div>
+
+<h2>Come funziona il parser</h2>
+<div class="card">
+  <p style="color:var(--soft);margin-bottom:12px;line-height:1.7">Ogni voce della scheda (es. <code style="color:var(--green)">"150g petto di pollo"</code>) viene analizzata in 3 passi:</p>
+  <div class="formula">
+    <span class="hl">PASSO 1 — Estrai quantità e unità</span><br>
+    "150g petto di pollo" → qty = 150, unit = "g", food = "petto di pollo"<br>
+    "2 scatolette tonno" → qty = 2,   unit = "scatolette", food = "tonno"<br>
+    "1 frutto"           → qty = 1,   unit = "pz", food = "frutto"<br>
+    "500 kcal"           → kcal esplicite → 500 (usate direttamente)<br><br>
+    <span class="hl">PASSO 2 — Converti unità in grammi</span><br>
+    g     → grammi diretti<br>
+    kg    → × 1000<br>
+    pz    → peso variabile (vedi tabella sotto)<br>
+    fette → 35g / fetta di pane · 10g / biscotto o galletta<br>
+    scatolette → 80g tonno sgocciolato · 120g altri<br>
+    busta · pacco → 100g<br><br>
+    <span class="hl">PASSO 3 — Cerca nel DB (chiave più lunga = più specifica vince)</span><br>
+    "pasta integrale" → match "pasta integrale" (340) ✓<br>
+    "pasta"           → match "pasta" (350) ✓<br>
+    Se non trovato   → fallback generico 150 kcal/100g<br><br>
+    <span class="hl">FORMULA FINALE</span><br>
+    kcal = round( grammi_totali × kcal_per_100g / 100 )
+  </div>
+</div>
+
+<h2>Pesi per unità "pz" (pezzo)</h2>
+<div class="card">
+  <table class="unit-table">
+    <tr><th>Alimento</th><th>Grammi per pezzo</th></tr>
+    <tr><td>uova / uovo</td><td>60g</td></tr>
+    <tr><td>banana</td><td>120g</td></tr>
+    <tr><td>mela</td><td>160g</td></tr>
+    <tr><td>pera</td><td>150g</td></tr>
+    <tr><td>arancia</td><td>170g</td></tr>
+    <tr><td>mandarino / kiwi</td><td>80g</td></tr>
+    <tr><td>pesca</td><td>130g</td></tr>
+    <tr><td>frutto (generico)</td><td>150g</td></tr>
+    <tr><td>biscotti / gallette / crackers</td><td>10g</td></tr>
+    <tr><td>altri (generico)</td><td>50g</td></tr>
+  </table>
+</div>
+
+<h2>Esempi tracciati</h2>
+
+<div class="example">
+  <div class="example-input">"140g pasta integrale"</div>
+  <div class="example-steps">
+    Qty = <span>140g</span> · Cerca "pasta integrale" nel DB → <span>340 kcal/100g</span><br>
+    (se cercasse "pasta" prima prenderebbe 350 — il parser usa la chiave più lunga)
+  </div>
+  <div class="example-result">= 476 kcal</div>
+</div>
+
+<div class="example">
+  <div class="example-input">"2 scatolette tonno no olio"</div>
+  <div class="example-steps">
+    Qty = <span>2 scatolette</span> → 2 × 80g = <span>160g</span> (tonno = 80g sgocciolato)<br>
+    Cerca "tonno in scatoletta" → <span>103 kcal/100g</span>
+  </div>
+  <div class="example-result">= 165 kcal</div>
+</div>
+
+<div class="example">
+  <div class="example-input">"250g macinato manzo magro"</div>
+  <div class="example-steps">
+    Qty = <span>250g</span> · Stopword "magro" rimossa dalla ricerca<br>
+    Cerca "macinato manzo magro" (chiave lunga) → <span>178 kcal/100g</span><br>
+    <span style="color:#ffaa55">⚠ Prima trovava "macinato manzo" (250 kcal) — differenza: 180 kcal su 250g!</span>
+  </div>
+  <div class="example-result">= 445 kcal</div>
+</div>
+
+<div class="example">
+  <div class="example-input">"1 frutto"</div>
+  <div class="example-steps">
+    Unit = "pz" · Food = "frutto" → peso = <span>150g</span><br>
+    Cerca "frutto" → <span>55 kcal/100g</span>
+  </div>
+  <div class="example-result">= 83 kcal</div>
+</div>
+
+<div class="example">
+  <div class="example-input">"3 fette pane in cassetta"</div>
+  <div class="example-steps">
+    Unit = "fette" · food = "pane in cassetta" → non è biscotto → <span>35g/fetta</span><br>
+    3 × 35g = <span>105g</span> · Cerca "pane in cassetta" → <span>268 kcal/100g</span>
+  </div>
+  <div class="example-result">= 281 kcal</div>
+</div>
+
+<div class="example">
+  <div class="example-input">"500 kcal"</div>
+  <div class="example-steps">
+    Kcal esplicite rilevate → usate direttamente senza parsing
+  </div>
+  <div class="example-result">= 500 kcal</div>
+</div>
+
+<h2>Database calorico completo (kcal per 100g)</h2>
+<div class="search-wrap">
+  <input type="text" id="searchInput" placeholder="Cerca un alimento…" oninput="filterTable()">
+</div>
+<div class="card" style="padding:0;overflow:hidden">
+  <table id="kcalTable">
+    <tr><th>Alimento</th><th style="text-align:right">kcal/100g</th><th>Note</th></tr>
+
+    <tr class="cat-row"><td colspan="3">Latticini</td></tr>
+    <tr><td>latte intero</td><td class="kcal">61</td><td class="note"></td></tr>
+    <tr><td>latte parzialmente scremato</td><td class="kcal">47</td><td class="note"></td></tr>
+    <tr><td>latte scremato</td><td class="kcal">36</td><td class="note"></td></tr>
+    <tr><td>yogurt greco</td><td class="kcal">97</td><td class="note">full fat</td></tr>
+    <tr><td>yogurt greco 0%</td><td class="kcal">57</td><td class="note">magro</td></tr>
+    <tr><td>yogurt bianco</td><td class="kcal">63</td><td class="note"></td></tr>
+    <tr><td>ricotta</td><td class="kcal">174</td><td class="note"></td></tr>
+    <tr><td>grana padano / parmigiano</td><td class="kcal">392</td><td class="note"></td></tr>
+    <tr><td>mozzarella</td><td class="kcal">254</td><td class="note"></td></tr>
+    <tr><td>mozzarella light</td><td class="kcal">165</td><td class="note"></td></tr>
+    <tr><td>fiocchi di latte</td><td class="kcal">105</td><td class="note"></td></tr>
+    <tr><td>burro</td><td class="kcal">717</td><td class="note"></td></tr>
+    <tr><td>panna</td><td class="kcal">337</td><td class="note"></td></tr>
+
+    <tr class="cat-row"><td colspan="3">Proteine animali</td></tr>
+    <tr><td>uova intere</td><td class="kcal">155</td><td class="note">60g/pz</td></tr>
+    <tr><td>albume</td><td class="kcal">52</td><td class="note"></td></tr>
+    <tr><td>tuorlo</td><td class="kcal">322</td><td class="note"></td></tr>
+    <tr><td>petto di pollo</td><td class="kcal">110</td><td class="note">crudo</td></tr>
+    <tr><td>pollo arrosto</td><td class="kcal">165</td><td class="note">cotto</td></tr>
+    <tr><td>petto di tacchino</td><td class="kcal">107</td><td class="note">crudo</td></tr>
+    <tr><td>macinato manzo magro</td><td class="kcal">178</td><td class="note">≤10% grassi</td></tr>
+    <tr><td>macinato manzo</td><td class="kcal">248</td><td class="note">standard ~20% grassi</td></tr>
+    <tr><td>bistecca di manzo</td><td class="kcal">217</td><td class="note"></td></tr>
+    <tr><td>bistecca vitello</td><td class="kcal">108</td><td class="note">crudo</td></tr>
+    <tr><td>lonza maiale</td><td class="kcal">143</td><td class="note"></td></tr>
+    <tr><td>salmone fresco</td><td class="kcal">142</td><td class="note">crudo</td></tr>
+    <tr><td>salmone affumicato</td><td class="kcal">172</td><td class="note"></td></tr>
+    <tr><td>tonno in scatoletta</td><td class="kcal">103</td><td class="note">al naturale; 80g/scatoletta sgocciolato</td></tr>
+    <tr><td>tonno sott'olio</td><td class="kcal">198</td><td class="note"></td></tr>
+    <tr><td>merluzzo</td><td class="kcal">82</td><td class="note"></td></tr>
+    <tr><td>branzino</td><td class="kcal">97</td><td class="note"></td></tr>
+    <tr><td>orata</td><td class="kcal">109</td><td class="note"></td></tr>
+    <tr><td>bresaola</td><td class="kcal">151</td><td class="note"></td></tr>
+    <tr><td>prosciutto cotto</td><td class="kcal">136</td><td class="note"></td></tr>
+    <tr><td>prosciutto crudo</td><td class="kcal">269</td><td class="note"></td></tr>
+    <tr><td>speck</td><td class="kcal">219</td><td class="note"></td></tr>
+    <tr><td>mortadella</td><td class="kcal">311</td><td class="note"></td></tr>
+
+    <tr class="cat-row"><td colspan="3">Legumi</td></tr>
+    <tr><td>ceci cotti</td><td class="kcal">164</td><td class="note"></td></tr>
+    <tr><td>lenticchie cotte</td><td class="kcal">116</td><td class="note"></td></tr>
+    <tr><td>fagioli cotti</td><td class="kcal">130</td><td class="note"></td></tr>
+    <tr><td>edamame</td><td class="kcal">121</td><td class="note"></td></tr>
+
+    <tr class="cat-row"><td colspan="3">Carboidrati</td></tr>
+    <tr><td>pasta (secca)</td><td class="kcal">350</td><td class="note">peso a crudo</td></tr>
+    <tr><td>pasta integrale (secca)</td><td class="kcal">340</td><td class="note">peso a crudo</td></tr>
+    <tr><td>pasta cotta</td><td class="kcal">131</td><td class="note">peso da cotto</td></tr>
+    <tr><td>pasta integrale cotta</td><td class="kcal">140</td><td class="note">peso da cotto</td></tr>
+    <tr><td>riso basmati (secco)</td><td class="kcal">356</td><td class="note">peso a crudo</td></tr>
+    <tr><td>riso integrale (secco)</td><td class="kcal">362</td><td class="note">peso a crudo</td></tr>
+    <tr><td>riso cotto</td><td class="kcal">130</td><td class="note">peso da cotto</td></tr>
+    <tr><td>pane</td><td class="kcal">265</td><td class="note">35g/fetta</td></tr>
+    <tr><td>pane integrale</td><td class="kcal">241</td><td class="note">35g/fetta</td></tr>
+    <tr><td>pane in cassetta</td><td class="kcal">268</td><td class="note">35g/fetta</td></tr>
+    <tr><td>fette biscottate</td><td class="kcal">410</td><td class="note">10g/fetta</td></tr>
+    <tr><td>gallette di riso</td><td class="kcal">382</td><td class="note">10g/cad</td></tr>
+    <tr><td>crackers</td><td class="kcal">430</td><td class="note">8g/cad</td></tr>
+    <tr><td>fiocchi di avena</td><td class="kcal">379</td><td class="note"></td></tr>
+    <tr><td>patate</td><td class="kcal">77</td><td class="note">crude</td></tr>
+    <tr><td>patate dolci</td><td class="kcal">86</td><td class="note"></td></tr>
+    <tr><td>quinoa cotta</td><td class="kcal">120</td><td class="note"></td></tr>
+    <tr><td>biscotti secchi</td><td class="kcal">438</td><td class="note">10g/biscotto</td></tr>
+    <tr><td>cereali</td><td class="kcal">375</td><td class="note">stima media</td></tr>
+    <tr><td>galbusera protein</td><td class="kcal">362</td><td class="note"></td></tr>
+
+    <tr class="cat-row"><td colspan="3">Verdure</td></tr>
+    <tr><td>zucchine</td><td class="kcal">17</td><td class="note"></td></tr>
+    <tr><td>carote</td><td class="kcal">41</td><td class="note"></td></tr>
+    <tr><td>broccoli</td><td class="kcal">34</td><td class="note"></td></tr>
+    <tr><td>spinaci</td><td class="kcal">23</td><td class="note"></td></tr>
+    <tr><td>pomodori</td><td class="kcal">18</td><td class="note"></td></tr>
+    <tr><td>peperoni</td><td class="kcal">31</td><td class="note"></td></tr>
+    <tr><td>insalata / lattuga</td><td class="kcal">14</td><td class="note"></td></tr>
+    <tr><td>melanzane</td><td class="kcal">25</td><td class="note"></td></tr>
+    <tr><td>funghi champignon</td><td class="kcal">27</td><td class="note"></td></tr>
+    <tr><td>cetrioli</td><td class="kcal">12</td><td class="note"></td></tr>
+    <tr><td>verdure (generico)</td><td class="kcal">25</td><td class="note">fallback</td></tr>
+
+    <tr class="cat-row"><td colspan="3">Frutta</td></tr>
+    <tr><td>banana</td><td class="kcal">89</td><td class="note">120g/pz</td></tr>
+    <tr><td>mela</td><td class="kcal">52</td><td class="note">160g/pz</td></tr>
+    <tr><td>pera</td><td class="kcal">57</td><td class="note">150g/pz</td></tr>
+    <tr><td>arancia</td><td class="kcal">47</td><td class="note">170g/pz</td></tr>
+    <tr><td>kiwi</td><td class="kcal">61</td><td class="note">80g/pz</td></tr>
+    <tr><td>avocado</td><td class="kcal">160</td><td class="note"></td></tr>
+    <tr><td>fragole</td><td class="kcal">33</td><td class="note"></td></tr>
+    <tr><td>mirtilli</td><td class="kcal">57</td><td class="note"></td></tr>
+    <tr><td>frutto (generico)</td><td class="kcal">55</td><td class="note">150g/pz</td></tr>
+
+    <tr class="cat-row"><td colspan="3">Grassi e condimenti</td></tr>
+    <tr><td>olio evo / olio</td><td class="kcal">884</td><td class="note">~4.4 kcal/g · attenzione ai pesi!</td></tr>
+    <tr><td>burro di arachidi</td><td class="kcal">588</td><td class="note"></td></tr>
+    <tr><td>miele</td><td class="kcal">304</td><td class="note"></td></tr>
+    <tr><td>nutella</td><td class="kcal">539</td><td class="note"></td></tr>
+
+    <tr class="cat-row"><td colspan="3">Cioccolato</td></tr>
+    <tr><td>cioccolato fondente 85%</td><td class="kcal">598</td><td class="note"></td></tr>
+    <tr><td>cioccolato fondente 70%</td><td class="kcal">572</td><td class="note"></td></tr>
+    <tr><td>cioccolato fondente</td><td class="kcal">545</td><td class="note">generico</td></tr>
+    <tr><td>cioccolato al latte</td><td class="kcal">535</td><td class="note"></td></tr>
+    <tr><td>cacao amaro</td><td class="kcal">354</td><td class="note"></td></tr>
+
+    <tr class="cat-row"><td colspan="3">Frutta secca e semi</td></tr>
+    <tr><td>mandorle</td><td class="kcal">579</td><td class="note"></td></tr>
+    <tr><td>noci</td><td class="kcal">654</td><td class="note"></td></tr>
+    <tr><td>nocciole</td><td class="kcal">628</td><td class="note"></td></tr>
+    <tr><td>anacardi</td><td class="kcal">553</td><td class="note"></td></tr>
+    <tr><td>arachidi</td><td class="kcal">567</td><td class="note"></td></tr>
+    <tr><td>semi di chia</td><td class="kcal">486</td><td class="note"></td></tr>
+    <tr><td>frutta secca (generico)</td><td class="kcal">600</td><td class="note">fallback</td></tr>
+
+    <tr class="cat-row"><td colspan="3">Integratori</td></tr>
+    <tr><td>whey protein</td><td class="kcal">370</td><td class="note">stima media</td></tr>
+    <tr><td>barretta proteica</td><td class="kcal">380</td><td class="note">stima media</td></tr>
+  </table>
+</div>
+
+<h2>Formula BMR · TDEE · Bilancio</h2>
+<div class="two-col">
+  <div class="card">
+    <div style="font-size:11px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">BMR (Mifflin-St Jeor)</div>
+    <div class="formula">
+      Uomo: <span class="hl">10×peso + 6.25×altezza − 5×età + 5</span><br>
+      Donna: <span class="hl">10×peso + 6.25×altezza − 5×età − 161</span><br>
+      <br>
+      peso in kg · altezza in cm · età in anni
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-size:11px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">TDEE (con palestra)</div>
+    <div class="formula">
+      TDEE = BMR × <span class="hl">moltiplicatore attività</span><br><br>
+      0 giorni/sett → ×1.20 (sedentario)<br>
+      1–2 giorni/sett → ×1.375<br>
+      3–4 giorni/sett → ×1.55<br>
+      5–6 giorni/sett → ×1.725<br>
+      7 giorni/sett → ×1.90<br><br>
+      + bonus volume: ogni 10.000 kg/sett (serie×rip×kg) → +0.015, max +0.15
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div style="font-size:11px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Proiezione obiettivo</div>
+  <div class="formula">
+    <span class="hl">DIMAGRIRE</span> (formula calorica — 7700 kcal = 1 kg grasso)<br>
+    deficit/die = scheda_kcal − TDEE  (deve essere negativo)<br>
+    giorni = (kg_da_perdere × 7700) / |deficit/die|<br>
+    più palestra → TDEE alto → deficit grande → stima più corta ✓<br><br>
+    <span class="hl">MASSA</span> (formula fisiologica — limite è ormonale, non calorico)<br>
+    kg/mese = 0.25 (0 gg) · 0.40 (1–2 gg) · 0.60 (3 gg) · 0.75 (4 gg) · 0.90 (5+ gg)<br>
+    + bonus volume: +0.08/+0.10 se volume ≥ 5.000 / 15.000 kg/sett<br>
+    mesi = kg_da_guadagnare / kg_mese<br>
+    più palestra → tasso mensile alto → stima più corta ✓
+  </div>
+</div>
+
+<div class="warn">
+  ⚠ <strong>Nota su crudo vs cotto:</strong> la scheda usa i pesi come scritti. Se scrivi "140g pasta" intendendo la pasta cotta, usa il valore "pasta cotta" (131 kcal/100g invece di 350). Per essere preciso, specifica "140g pasta cotta" oppure "140g pasta integrale cotta".
+</div>
+
+<script>
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const rows = document.querySelectorAll('#kcalTable tr:not(.cat-row):not(:first-child)');
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.classList.toggle('hidden', q.length > 0 && !text.includes(q));
+  });
+  // Nascondi categorie vuote
+  document.querySelectorAll('.cat-row').forEach(cat => {
+    let next = cat.nextElementSibling;
+    let allHidden = true;
+    while (next && !next.classList.contains('cat-row')) {
+      if (!next.classList.contains('hidden')) { allHidden = false; break; }
+      next = next.nextElementSibling;
+    }
+    cat.classList.toggle('hidden', allHidden && q.length > 0);
+  });
+}
+</script>
+</body>
+</html>

@@ -228,16 +228,21 @@ function renderTrackerAnalytics() {
       let timeStr = '—', weeksNeeded = 0, gymProjNote = '';
 
       if (pd.obiettivo === 'massa') {
-        // ── MASSA: il limite è fisiologico, non calorico ──────────────────
-        // Il ritmo di crescita muscolare dipende dalla frequenza + volume di allenamento
-        let kgPerMonth = 0.25; // minimo senza allenamento
+        // ── MASSA: limite fisiologico + vincolo calorico ──────────────────
+        let kgPerMonth = 0.25;
         if (trainingDays >= 1) kgPerMonth = 0.40;
         if (trainingDays >= 3) kgPerMonth = 0.60;
         if (trainingDays >= 4) kgPerMonth = 0.75;
         if (trainingDays >= 5) kgPerMonth = 0.90;
-        // Bonus volume: chi solleva molto (alto kg × serie × rip) cresce leggermente prima
         if (totalVol >= 5000)  kgPerMonth = Math.min(kgPerMonth + 0.08, 1.2);
         if (totalVol >= 15000) kgPerMonth = Math.min(kgPerMonth + 0.10, 1.5);
+        // Vincolo calorico: senza surplus sufficiente la crescita rallenta
+        if (balance !== null) {
+          if (balance < 0)         kgPerMonth *= 0.30; // deficit → quasi impossibile crescere
+          else if (balance < 150)  kgPerMonth *= 0.55; // surplus insufficiente
+          else if (balance < 300)  kgPerMonth *= 0.80; // surplus borderline
+          // balance >= 300: tasso pieno
+        }
 
         const monthsNeeded = kgDiff / kgPerMonth;
         weeksNeeded = Math.round(monthsNeeded * 4.3);
@@ -257,7 +262,10 @@ function renderTrackerAnalytics() {
           <div class="analytics-gym-proj-row"><span>Grasso corporeo</span><strong>+${estFat} kg</strong></div>
           <div class="analytics-gym-proj-note">${trainingDays} sessioni/sett · ~${kgPerMonth.toFixed(2)} kg/mese · volume ${totalVol > 0 ? Math.round(totalVol)+'kg/sett' : 'non registrato'}</div>
         </div>`;
-        if (!onTrack) gymProjNote += `<div class="analytics-warn">⚠ Serve un surplus calorico per supportare la crescita muscolare</div>`;
+        if (balance !== null && balance < 0)
+          gymProjNote += `<div class="analytics-warn">⚠ Sei in deficit calorico: la crescita muscolare è quasi azzerata. Aumenta le kcal della scheda.</div>`;
+        else if (balance !== null && balance < 300)
+          gymProjNote += `<div class="analytics-warn">⚠ Surplus insufficiente (${Math.round(balance)} kcal/die): la crescita rallenta. Ideale ≥ 300 kcal di surplus.</div>`;
 
       } else if (pd.obiettivo === 'dimagrire' && Math.abs(balance) > 50) {
         // ── DIMAGRIRE: formula calorica (7700 kcal = 1kg grasso) ─────────
@@ -459,7 +467,6 @@ function renderTrackerAnalytics() {
       let weeksMax = 0, pts = [];
 
       if (pd.obiettivo === 'massa') {
-        // Usa lo stesso tasso mensile calcolato sopra (fisiologico)
         let kgPerMonth2 = 0.25;
         if (trainingDays >= 1) kgPerMonth2 = 0.40;
         if (trainingDays >= 3) kgPerMonth2 = 0.60;
@@ -467,6 +474,11 @@ function renderTrackerAnalytics() {
         if (trainingDays >= 5) kgPerMonth2 = 0.90;
         if (totalVol >= 5000)  kgPerMonth2 = Math.min(kgPerMonth2 + 0.08, 1.2);
         if (totalVol >= 15000) kgPerMonth2 = Math.min(kgPerMonth2 + 0.10, 1.5);
+        if (balance !== null) {
+          if (balance < 0)        kgPerMonth2 *= 0.30;
+          else if (balance < 150) kgPerMonth2 *= 0.55;
+          else if (balance < 300) kgPerMonth2 *= 0.80;
+        }
         const kgPerWeek2 = kgPerMonth2 / 4.3;
         weeksMax = Math.min(Math.ceil(kgDiff2 / kgPerWeek2) + 1, 120);
         pts = Array.from({length: weeksMax+1}, (_,i) => {

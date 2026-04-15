@@ -139,7 +139,7 @@ const DEFAULT_GYM = {
 // Chiavi KCAL_DB ordinate per lunghezza decrescente (più specifico vince)
 const KCAL_DB_SORTED = Object.entries(KCAL_DB).sort((a, b) => b[0].length - a[0].length);
 
-// Pesi medi per unità contabili (grammi)
+// Pesi medi per unità "pz" (grammi)
 const PZ_WEIGHTS = {
   'uova': 60, 'uovo': 60,
   'banana': 120, 'mela': 160, 'pera': 150, 'arancia': 170,
@@ -147,11 +147,29 @@ const PZ_WEIGHTS = {
   'biscotti': 10, 'gallette': 10, 'crackers': 8,
 };
 
+// Pesi reali per prodotti confezionati (pacco/pacchetto), in grammi
+const PACCO_WEIGHTS = {
+  'galbusera protein': 32,
+  'galbusera': 32,
+  'barretta proteica': 45,
+  'barretta': 45,
+};
+
+// Stopword solo connettive — NON aggettivi come magro/cotto che servono per il match
+const STOPWORDS = /\b(con|al|alla|allo|agli|alle|di|del|della|dello|in|no|senza|e)\b/g;
+
+function _dbLookup(str) {
+  for (const [key, val] of KCAL_DB_SORTED) {
+    if (str.includes(key)) return val;
+  }
+  return 0;
+}
+
 // Calcola kcal da stringa alimento es. "150g latte intero", "2 uova", "3 fette pane"
 function calcKcalFromFood(foodStr) {
   if (!foodStr || foodStr === 'Giorno libero' || foodStr === 'Libero') return 0;
 
-  // Cerca kcal esplicite: "500 kcal" o "500kcal"
+  // Kcal esplicite: "500 kcal"
   const explicitKcal = foodStr.match(/(\d+(?:\.\d+)?)\s*kcal/i);
   if (explicitKcal) return parseFloat(explicitKcal[1]);
 
@@ -163,56 +181,48 @@ function calcKcalFromFood(foodStr) {
 
   let qty = parseFloat(qtyMatch[1].replace(',', '.'));
   const unit = (qtyMatch[2] || 'g').toLowerCase();
-  const foodPart = str.slice(qtyMatch[0].length).trim()
-    // rimuovi stopword comuni
-    .replace(/\b(con|al|alla|allo|agli|alle|di|del|della|dello|in|no|senza|magro|magra|intero|intera|fresco|fresca|cotto|cotta)\b/g, ' ')
-    .replace(/\s+/g, ' ').trim();
 
-  // Trova corrispondenza nel DB (chiave più lunga prima = più specifica)
-  let kcalPer100 = 0;
-  for (const [key, val] of KCAL_DB_SORTED) {
-    if (foodPart.includes(key)) { kcalPer100 = val; break; }
-  }
-  // Se non trovato nella foodPart, cerca nell'intera stringa
-  if (!kcalPer100) {
-    for (const [key, val] of KCAL_DB_SORTED) {
-      if (str.includes(key)) { kcalPer100 = val; break; }
-    }
-  }
-  if (!kcalPer100) kcalPer100 = 150; // fallback generico
+  // foodRaw: parte descrittiva con aggettivi (magro, cotto…) — usata per match specifici
+  // foodClean: stessa parte senza stopword connettive
+  const foodRaw   = str.slice(qtyMatch[0].length).trim();
+  const foodClean = foodRaw.replace(STOPWORDS, ' ').replace(/\s+/g, ' ').trim();
+
+  // Lookup: prima prova con testo completo (cattura "macinato manzo magro"),
+  // poi senza stopword, poi sull'intera stringa, fallback 150
+  const kcalPer100 = _dbLookup(foodRaw) || _dbLookup(foodClean) || _dbLookup(str) || 150;
 
   // Converti unità in grammi
   if (unit === 'kg') qty *= 1000;
   else if (unit === 'l') qty *= 1000;
-  else if (unit === 'ml') { /* 1 ml ≈ 1 g per liquidi */ }
+  else if (unit === 'ml') { /* 1 ml ≈ 1g */ }
   else if (unit === 'pz') {
-    // Peso variabile in base al cibo
     let gPerPz = 50;
     for (const [food, w] of Object.entries(PZ_WEIGHTS)) {
-      if (foodPart.includes(food) || str.includes(food)) { gPerPz = w; break; }
+      if (foodRaw.includes(food) || str.includes(food)) { gPerPz = w; break; }
     }
     qty *= gPerPz;
   }
   else if (unit === 'fetta' || unit === 'fette') {
-    // Fetta di pane ~35g, biscotto ~10g, fetta biscottata ~10g
-    const isBiscuit = foodPart.includes('biscott') || foodPart.includes('gallette') || foodPart.includes('biscottate');
+    const isBiscuit = foodRaw.includes('biscott') || foodRaw.includes('gallette') || foodRaw.includes('biscottate');
     qty *= isBiscuit ? 10 : 35;
   }
   else if (unit === 'scatoletta' || unit === 'scatolette') {
-    // Tonno sgocciolato ~80g, altri ~120g
-    qty *= (foodPart.includes('tonno') || str.includes('tonno')) ? 80 : 120;
+    qty *= (foodRaw.includes('tonno') || str.includes('tonno')) ? 80 : 120;
   }
   else if (unit === 'busta' || unit === 'buste') {
-    // Salmone affumicato busta ~100g, altri ~100g
     qty *= 100;
   }
   else if (unit === 'pacco' || unit === 'pacchetto') {
-    qty *= 100;
+    // Cerca peso specifico per prodotto noto, altrimenti 100g
+    let gPerPacco = 100;
+    for (const [prod, w] of Object.entries(PACCO_WEIGHTS)) {
+      if (foodRaw.includes(prod) || str.includes(prod)) { gPerPacco = w; break; }
+    }
+    qty *= gPerPacco;
   }
   else if (unit === 'porzione') {
-    qty *= 150; // stima generica porzione
+    qty *= 150;
   }
-  // 'g' o nessuna unità: qty già in grammi
 
   return Math.round((qty * kcalPer100) / 100);
 }
