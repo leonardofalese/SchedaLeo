@@ -44,7 +44,7 @@ function renderMeals() {
     return `<div class="meal-card ${done?'done':''}" id="meal-card-${k}">
       <div class="meal-header" onclick="toggleMeal(${currentDay},'${k}')">
         <div class="meal-icon-wrap" style="color:${done?'var(--green)':'var(--text-mid)'}">${ICO[k]}</div>
-        <div class="meal-info"><div class="meal-name">${MEAL_LABELS[k]}<span style="font-size:11px;font-weight:400;color:var(--text-mid);margin-left:8px;font-family:var(--mono)">${kcalMeal>0?' · '+kcalMeal+' kcal':''}</span></div><div class="meal-time">${times[k]}</div></div>
+        <div class="meal-info"><div class="meal-name">${MEAL_LABELS[k]}<span style="font-size:11px;font-weight:400;color:var(--text-mid);font-family:var(--mono)">${kcalMeal>0?' · '+kcalMeal+' kcal':''}</span></div><div class="meal-time">${times[k]}</div></div>
         <div style="display:flex;align-items:center;gap:8px">
           <button onclick="event.stopPropagation();toggleMealEdit('${k}')" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text-soft);display:flex;align-items:center" title="Modifica quantità">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
