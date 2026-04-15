@@ -97,10 +97,13 @@ body{font-family:var(--font);color:var(--text)}
 .score-bar{display:flex;gap:3px}
 .score-dot{width:8px;height:8px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);transition:all .2s}
 .score-dot.done{background:var(--green);border-color:var(--green)}
+.score-dot.gym{border-color:rgba(100,180,255,.4)}
+.score-dot.gym.done{background:rgba(100,180,255,.9);border-color:rgba(100,180,255,.9)}
 .tracker-meals{padding:0 16px 12px;border-top:1px solid var(--border)}
 .tracker-meal-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
 .tracker-meal-row:last-child{border-bottom:none}
 .tracker-cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.tracker-cb.gym.checked{background:rgba(100,180,255,.85);border-color:rgba(100,180,255,.85)}
 .tracker-cb.checked{background:var(--green);border-color:var(--green)}
 .tracker-cb.checked::after{content:'✓';color:#0a0a0a;font-size:9px;font-weight:800}
 .tracker-meal-name{font-size:12px;color:var(--text-mid)}
@@ -217,6 +220,12 @@ body{font-family:var(--font);color:var(--text)}
 .goal-btn.active{border-color:var(--green);color:var(--green);background:var(--green-dim)}
 .profile-target-row{display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--border)}
 .profile-target-label{font-size:12px;color:var(--text-mid);flex:1}
+/* TRACKER SECTION */
+.tracker-section-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-soft);padding:4px 0 2px}
+.tracker-ex-stats{font-size:10px;color:var(--text-soft);font-family:var(--mono)}
+.tracker-rest-row{font-size:12px;color:var(--text-soft);padding:8px 0}
+.tracker-divider{color:var(--border2);font-size:10px}
+.analytics-section-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft);margin:16px 0 8px}
 /* ANALYTICS */
 .analytics-note{font-size:12px;color:var(--text-soft);background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:12px}
 .analytics-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}

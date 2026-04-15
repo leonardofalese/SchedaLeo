@@ -139,7 +139,7 @@ function updateProgress() {
 }
 
 // ── ANALYTICS ─────────────────────────────────────────────
-let _chartWeekly = null, _chartMeals = null, _chartProjection = null;
+let _chartWeekly = null, _chartMeals = null, _chartProjection = null, _chartGym = null, _chartVol = null;
 
 function calcBMR(pd) {
   if (!pd || !pd.peso || !pd.altezza || !pd.eta) return 0;
@@ -153,9 +153,11 @@ function calcAvgDailyKcal() {
 }
 
 function renderTrackerAnalytics() {
-  if (_chartWeekly) { _chartWeekly.destroy(); _chartWeekly = null; }
-  if (_chartMeals) { _chartMeals.destroy(); _chartMeals = null; }
-  if (_chartProjection) { _chartProjection.destroy(); _chartProjection = null; }
+  if (_chartWeekly)    { _chartWeekly.destroy();    _chartWeekly    = null; }
+  if (_chartMeals)     { _chartMeals.destroy();     _chartMeals     = null; }
+  if (_chartProjection){ _chartProjection.destroy(); _chartProjection= null; }
+  if (_chartGym)       { _chartGym.destroy();       _chartGym       = null; }
+  if (_chartVol)       { _chartVol.destroy();        _chartVol       = null; }
 
   const el = document.getElementById('trackerAnalytics');
   const pd = state.profileData;
@@ -210,10 +212,48 @@ function renderTrackerAnalytics() {
     }
   }
 
+  // ── GYM ANALYTICS ──────────────────────────────────────
+  const gymDays   = Array.from({length:7}, (_,d) => state.gymData.giorni[d] || {nome:'', esercizi:[]});
+  const hasGymData = gymDays.some(d => (d.esercizi||[]).length > 0);
+
+  let gymStatsHTML = '', gymChartHTML = '';
+  if (hasGymData) {
+    const trainingDays = gymDays.filter(d => (d.esercizi||[]).length > 0 && (d.nome||'').toLowerCase() !== 'riposo').length;
+    const totalEx      = gymDays.reduce((a,d) => a + (d.esercizi||[]).length, 0);
+    const totalSets    = gymDays.reduce((a,d) => a + (d.esercizi||[]).reduce((b,ex) => b+(parseInt(ex.serie)||0), 0), 0);
+    const totalVol     = gymDays.reduce((a,d) => a + (d.esercizi||[]).reduce((b,ex) => {
+      const kg  = parseFloat(ex.kg);
+      const rip = parseInt((ex.ripetizioni||'').split('-')[0]);
+      return (!isNaN(kg) && kg > 0 && !isNaN(rip) && rip > 0) ? b + (parseInt(ex.serie)||0)*rip*kg : b;
+    }, 0), 0);
+    const totalDone    = gymDays.reduce((a,d,di) => a + (d.esercizi||[]).filter((_,i)=>isGymDone(di,i)).length, 0);
+    const completePct  = totalEx > 0 ? Math.round(totalDone/totalEx*100) : 0;
+
+    gymStatsHTML = `<div class="analytics-stats-row" style="margin-top:0">
+      <div class="analytics-stat"><div class="analytics-stat-val">${trainingDays}</div><div class="analytics-stat-label">Sessioni/sett</div></div>
+      <div class="analytics-stat"><div class="analytics-stat-val">${totalEx}</div><div class="analytics-stat-label">Esercizi/sett</div></div>
+      <div class="analytics-stat"><div class="analytics-stat-val">${totalSets}</div><div class="analytics-stat-label">Serie totali</div></div>
+      <div class="analytics-stat ${completePct===100?'surplus':''}"><div class="analytics-stat-val">${totalVol>0?Math.round(totalVol)+'kg':''+completePct+'%'}</div><div class="analytics-stat-label">${totalVol>0?'Volume sett.':'Completato'}</div></div>
+    </div>`;
+
+    gymChartHTML = `
+    <div class="analytics-card">
+      <div class="analytics-card-title">Completamento allenamenti · settimana</div>
+      <canvas id="gymChart" height="100"></canvas>
+    </div>
+    ${totalVol > 0 ? `<div class="analytics-card">
+      <div class="analytics-card-title">Volume stimato per giorno <span style="font-size:10px;font-weight:400;color:var(--text-mid)">(serie × rip × kg)</span></div>
+      <canvas id="volChart" height="100"></canvas>
+    </div>` : ''}`;
+  }
+
   const noProfile = !pd || (!pd.peso && !pd.eta);
   const noProfileNote = noProfile ? `<div class="analytics-note">Aggiungi i tuoi dati fisici in Impostazioni per vedere BMR, TDEE e la proiezione obiettivo.</div>` : '';
 
-  el.innerHTML = `${noProfileNote}${statsHTML}${projHTML}
+  el.innerHTML = `
+    ${noProfileNote}
+    ${statsHTML ? `<div class="analytics-section-title">Alimentazione</div>${statsHTML}` : ''}
+    ${projHTML}
     <div class="analytics-card">
       <div class="analytics-card-title">Kcal giornaliere · scheda</div>
       <canvas id="weeklyChart" height="120"></canvas>
@@ -221,7 +261,8 @@ function renderTrackerAnalytics() {
     <div class="analytics-card">
       <div class="analytics-card-title">Media kcal per pasto</div>
       <canvas id="mealsChart" height="160"></canvas>
-    </div>`;
+    </div>
+    ${hasGymData ? `<div class="analytics-section-title" style="margin-top:8px">Palestra</div>${gymStatsHTML}${gymChartHTML}` : ''}`;
 
   const chartDefaults = {
     color: '#888',
@@ -273,6 +314,69 @@ function renderTrackerAnalytics() {
       });
     }
 
+    // Gym completion stacked bar
+    const gCtx = document.getElementById('gymChart')?.getContext('2d');
+    if (gCtx && typeof Chart !== 'undefined' && hasGymData) {
+      const gymDayStats = gymDays.map((d,di) => {
+        const exs = d.esercizi||[];
+        const isRest = (d.nome||'').toLowerCase()==='riposo';
+        const done = exs.filter((_,i)=>isGymDone(di,i)).length;
+        return { total: exs.length, done, remaining: exs.length-done, isRest };
+      });
+      _chartGym = new Chart(gCtx, {
+        type: 'bar',
+        data: {
+          labels: GIORNI_SHORT,
+          datasets: [
+            { label:'Completati', data: gymDayStats.map(s=>s.done),
+              backgroundColor: gymDayStats.map(s => s.isRest ? 'transparent' : 'rgba(100,180,255,.85)'),
+              borderRadius: 6, borderSkipped: false, stack:'gym' },
+            { label:'Rimanenti', data: gymDayStats.map(s=>s.remaining),
+              backgroundColor: gymDayStats.map(s => s.isRest ? 'transparent' : 'rgba(100,180,255,.2)'),
+              borderRadius: 6, borderSkipped: false, stack:'gym' }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position:'bottom', labels:{color:'#aaa',font:{size:11},padding:12,boxWidth:12} },
+            tooltip: { callbacks: { label: c => c.dataset.label+': '+c.raw+' es.' } }
+          },
+          scales: {
+            x: { grid:{display:false}, ticks:{color:'#888',font:{size:11}}, stacked:true },
+            y: { grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#888',font:{size:11},stepSize:1}, stacked:true }
+          }
+        }
+      });
+    }
+
+    // Volume per day bar
+    const vCtx = document.getElementById('volChart')?.getContext('2d');
+    if (vCtx && typeof Chart !== 'undefined' && hasGymData) {
+      const volData = gymDays.map(d => (d.esercizi||[]).reduce((a,ex) => {
+        const kg  = parseFloat(ex.kg);
+        const rip = parseInt((ex.ripetizioni||'').split('-')[0]);
+        return (!isNaN(kg)&&kg>0&&!isNaN(rip)&&rip>0) ? a+(parseInt(ex.serie)||0)*rip*kg : a;
+      }, 0));
+      _chartVol = new Chart(vCtx, {
+        type: 'bar',
+        data: {
+          labels: GIORNI_SHORT,
+          datasets: [{ label:'Volume (kg)', data: volData,
+            backgroundColor: volData.map((_,i) => i===today ? 'rgba(100,180,255,.85)' : 'rgba(100,180,255,.3)'),
+            borderRadius: 6, borderSkipped: false }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend:{display:false}, tooltip:{callbacks:{label:c=>Math.round(c.raw)+' kg'}} },
+          scales: {
+            x: { grid:{display:false}, ticks:{color:'#888',font:{size:11}} },
+            y: { grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#888',font:{size:11}} }
+          }
+        }
+      });
+    }
+
     // Projection line chart
     if (pd?.pesoObiettivo && pd?.peso) {
       const pCtx = document.getElementById('projectionChart')?.getContext('2d');
@@ -313,19 +417,62 @@ function renderTrackerAnalytics() {
   }, 50);
 }
 
+function toggleGymExTracker(d,i) {
+  state.gymLog[gymLogKey(d,i)] = !isGymDone(d,i);
+  save();
+  renderTracker();
+  renderHomePalestra();
+}
+
 function renderTracker() {
   renderTrackerAnalytics();
   document.getElementById('trackerContent').innerHTML = GIORNI.map((g,di) => {
-    const cnt = MEAL_KEYS.filter(k=>isDone(di,k)).length;
-    const dots = MEAL_KEYS.map(k=>`<div class="score-dot ${isDone(di,k)?'done':''}"></div>`).join('');
-    const rows = MEAL_KEYS.map(k=>{const d=isDone(di,k);return`<div class="tracker-meal-row"><div class="tracker-cb ${d?'checked':''}" onclick="event.stopPropagation();toggleMeal(${di},'${k}');renderTracker()"></div><span class="tracker-meal-name ${d?'done':''}">${MEAL_LABELS[k]} · ${state.mealData.times[k]}</span></div>`;}).join('');
+    // FOOD
+    const cnt      = MEAL_KEYS.filter(k=>isDone(di,k)).length;
+    const mealDots = MEAL_KEYS.map(k=>`<div class="score-dot ${isDone(di,k)?'done':''}"></div>`).join('');
+    const mealRows = MEAL_KEYS.map(k=>{
+      const d=isDone(di,k);
+      return `<div class="tracker-meal-row"><div class="tracker-cb ${d?'checked':''}" onclick="event.stopPropagation();toggleMeal(${di},'${k}');renderTracker()"></div><span class="tracker-meal-name ${d?'done':''}">${MEAL_LABELS[k]} · ${state.mealData.times[k]}</span></div>`;
+    }).join('');
+
+    // GYM
+    const gd      = state.gymData.giorni[di] || {};
+    const gNome   = gd.nome || '';
+    const gExs    = gd.esercizi || [];
+    const isRest  = gNome.toLowerCase() === 'riposo';
+    const gDone   = gExs.filter((_,i)=>isGymDone(di,i)).length;
+    const gymDots = gExs.map((_,i)=>`<div class="score-dot gym ${isGymDone(di,i)?'done':''}"></div>`).join('');
+
+    const gymHeaderPart = gExs.length > 0 && !isRest
+      ? `<span class="tracker-divider">│</span><div class="score-bar">${gymDots}</div><span style="color:var(--text-soft)">${gDone}/${gExs.length}</span>`
+      : isRest ? `<span class="tracker-divider">│</span><span style="font-size:10px;color:var(--text-soft)">🛌</span>` : '';
+
+    const gymDetailRows = isRest
+      ? `<div class="tracker-rest-row">🛌 Giorno di riposo</div>`
+      : gExs.length === 0
+        ? `<div class="tracker-rest-row">Nessun allenamento pianificato</div>`
+        : gExs.map((ex,i) => {
+            const done = isGymDone(di,i);
+            const stats = [
+              ex.serie&&ex.ripetizioni ? `${ex.serie}×${ex.ripetizioni}` : '',
+              ex.kg ? `${ex.kg}kg` : '',
+              ex.recupero ? `⏱${ex.recupero}` : ''
+            ].filter(Boolean).join(' · ');
+            return `<div class="tracker-meal-row"><div class="tracker-cb gym ${done?'checked':''}" onclick="event.stopPropagation();toggleGymExTracker(${di},${i})"></div><span class="tracker-meal-name ${done?'done':''}">${ex.nome||'Esercizio'}${stats?`<span class="tracker-ex-stats"> · ${stats}</span>`:''}</span></div>`;
+          }).join('');
+
     const isT = di===today;
     return `<div class="tracker-day" style="${isT?'border-color:rgba(184,245,102,.3)':''}">
       <div class="tracker-day-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
         <span class="tracker-day-name">${g}${isT?' <span style="font-size:10px;color:var(--green);font-family:var(--mono)">· OGGI</span>':''}</span>
-        <span style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px"><div class="score-bar">${dots}</div>${cnt}/4</span>
+        <span style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px"><div class="score-bar">${mealDots}</div>${cnt}/4${gymHeaderPart}</span>
       </div>
-      <div class="tracker-meals" style="display:${isT?'block':'none'}">${rows}</div>
+      <div class="tracker-meals" style="display:${isT?'block':'none'}">
+        <div class="tracker-section-label">Pasti</div>
+        ${mealRows}
+        <div class="tracker-section-label" style="margin-top:12px">Allenamento${gNome&&!isRest?` · <em style="color:var(--text)">${gNome}</em>`:''}${gExs.length>0&&!isRest?` <span style="font-family:var(--mono);color:var(--text-mid)">${gDone}/${gExs.length}</span>`:''}</div>
+        ${gymDetailRows}
+      </div>
     </div>`;
   }).join('');
 }
@@ -496,6 +643,7 @@ function renderGymDayTabs() {
 function selectGymDay(i) { gymDay=i; renderGymDayTabs(); renderGymExercises(); }
 
 function renderGymExercises() {
+  if (!document.getElementById('gymExercises')) return;
   const dayData = state.gymData.giorni[gymDay] || {};
   const nome = dayData.nome || '';
   const esercizi = dayData.esercizi || [];
