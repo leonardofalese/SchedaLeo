@@ -223,6 +223,28 @@ function calcWeekAvgMacros() {
   return {kcal:Math.round(s.kcal/count),p:Math.round(s.p/count),c:Math.round(s.c/count),g:Math.round(s.g/count)};
 }
 
+function _buildGymProgressionHTML() {
+  const history = state.gymHistory || {};
+  if (Object.keys(history).length === 0) return '';
+  // Trova tutti gli esercizi che hanno almeno 2 sessioni con kg
+  const exerciseMap = {};
+  Object.values(history).forEach(session => {
+    Object.entries(session).forEach(([nome, data]) => {
+      if (!data.kg || parseFloat(data.kg) <= 0) return;
+      if (!exerciseMap[nome]) exerciseMap[nome] = 0;
+      exerciseMap[nome]++;
+    });
+  });
+  const tracked = Object.entries(exerciseMap).filter(([,cnt]) => cnt >= 2).map(([nome]) => nome);
+  if (!tracked.length) return '';
+  const cards = tracked.slice(0,6).map(nome => `
+    <div class="analytics-card" style="margin-bottom:10px">
+      <div class="analytics-card-title">Progressione · ${nome}</div>
+      <canvas data-prog-canvas="${nome}" height="90"></canvas>
+    </div>`).join('');
+  return `<div class="analytics-section-title" style="margin-top:8px">Progressione carichi</div>${cards}`;
+}
+
 function renderTrackerAnalytics() {
   if (_chartWeekly)    { _chartWeekly.destroy();    _chartWeekly    = null; }
   if (_chartMeals)     { _chartMeals.destroy();     _chartMeals     = null; }
@@ -432,7 +454,7 @@ function renderTrackerAnalytics() {
       <div class="analytics-card-title">Media kcal per pasto</div>
       <canvas id="mealsChart" height="160"></canvas>
     </div>
-    ${hasGymData ? `<div class="analytics-section-title" style="margin-top:8px">Palestra</div>${gymStatsHTML}${gymChartHTML}` : ''}`;
+    ${hasGymData ? `<div class="analytics-section-title" style="margin-top:8px">Palestra</div>${gymStatsHTML}${gymChartHTML}${_buildGymProgressionHTML()}` : ''}`;
 
   const chartDefaults = {
     color: '#888',
@@ -441,6 +463,34 @@ function renderTrackerAnalytics() {
   };
 
   setTimeout(() => {
+    // Gym progression charts
+    document.querySelectorAll('[data-prog-canvas]').forEach(canvas => {
+      const nome = canvas.dataset.progCanvas;
+      const hist = getExerciseHistory(nome.toLowerCase());
+      if (hist.length < 2 || typeof Chart === 'undefined') return;
+      const ctx = canvas.getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: hist.map(e => e.date.slice(5)),
+          datasets: [{
+            data: hist.map(e => e.kg),
+            borderColor: 'rgba(100,180,255,.9)',
+            backgroundColor: 'rgba(100,180,255,.08)',
+            fill: true, tension: 0.3, pointRadius: 4, pointHoverRadius: 6,
+            pointBackgroundColor: 'rgba(100,180,255,.9)'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.raw} kg`}} },
+          scales: {
+            x: { grid:{display:false}, ticks:{color:'#888',font:{size:10}} },
+            y: { grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#888',font:{size:10}}, beginAtZero:false }
+          }
+        }
+      });
+    });
     // Weekly bar chart
     const wCtx = document.getElementById('weeklyChart')?.getContext('2d');
     if (wCtx && typeof Chart !== 'undefined') {
@@ -960,6 +1010,38 @@ function logWeight() {
   _refreshTracker();
 }
 
+// ── GYM HISTORY ──────────────────────────────────────────
+function logGymSession(dayIndex) {
+  const esercizi = state.gymData.giorni[dayIndex]?.esercizi || [];
+  if (!esercizi.length) return;
+  const todayStr = new Date().toISOString().slice(0,10);
+  if (!state.gymHistory) state.gymHistory = {};
+  if (!state.gymHistory[todayStr]) state.gymHistory[todayStr] = {};
+  esercizi.forEach(ex => {
+    if (!ex.nome) return;
+    state.gymHistory[todayStr][ex.nome] = {
+      kg: ex.kg || '',
+      rip: ex.ripetizioni || '',
+      serie: ex.serie || ''
+    };
+  });
+  save();
+  showToast('Sessione registrata!');
+}
+
+function getExerciseHistory(nomeLower) {
+  // Restituisce [{date, kg}] ordinati per data per un esercizio
+  const entries = [];
+  Object.entries(state.gymHistory || {}).forEach(([date, session]) => {
+    Object.entries(session).forEach(([nome, data]) => {
+      if (nome.toLowerCase() === nomeLower && data.kg && parseFloat(data.kg) > 0) {
+        entries.push({ date, kg: parseFloat(data.kg), rip: data.rip });
+      }
+    });
+  });
+  return entries.sort((a,b) => a.date.localeCompare(b.date)).slice(-20);
+}
+
 function renderGym() {
   const hasData = Object.values(state.gymData.giorni).some(d => (d.esercizi||[]).length > 0);
   document.getElementById('gymNoData').style.display  = hasData ? 'none' : 'block';
@@ -1038,7 +1120,14 @@ function renderHomePalestra() {
         </div>`;
       }).join('');
     }
-    if (!isRest) html += `<button class="add-food-btn" onclick="addGymExHome()" style="margin-top:8px;width:100%">+ Aggiungi esercizio</button>`;
+    if (!isRest && esercizi.length > 0) {
+      html += `<div style="display:flex;gap:8px;margin-top:8px">
+        <button class="add-food-btn" onclick="addGymExHome()" style="flex:1">+ Aggiungi esercizio</button>
+        <button class="gym-log-btn" onclick="logGymSession(${currentDay})" title="Registra kg di oggi nel log progressione">📊 Registra</button>
+      </div>`;
+    } else if (!isRest) {
+      html += `<button class="add-food-btn" onclick="addGymExHome()" style="margin-top:8px;width:100%">+ Aggiungi esercizio</button>`;
+    }
   }
   document.getElementById('homeGymContent').innerHTML = html;
 }

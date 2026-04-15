@@ -8,7 +8,8 @@ let state = {
   gymLog: {},
   profileData: null,
   schedaLoadedAt: null,
-  weightLog: []   // [{ date: 'YYYY-MM-DD', kg: 75.2 }, ...]
+  weightLog: [],  // [{ date: 'YYYY-MM-DD', kg: 75.2 }, ...]
+  gymHistory: {}  // { 'YYYY-MM-DD': { 'NomeEsercizio': { kg: '80', rip: '8' } } }
 };
 let today = new Date().getDay(); today = today===0?6:today-1;
 let currentDay = today, timerInt = null, settingsDay = 0, gymDay = 0, schedeGymDay = 0, schedeActiveTab = 'alimentare', homeActiveTab = 'alimenti';

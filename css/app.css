@@ -370,6 +370,9 @@ body{font-family:var(--font);color:var(--text)}
 .macro-split-p{background:#64b4ff;border-radius:3px 0 0 3px}
 .macro-split-c{background:#ffcc55}
 .macro-split-g{background:var(--green);border-radius:0 3px 3px 0;flex:1}
+/* GYM LOG BTN */
+.gym-log-btn{background:rgba(100,180,255,.1);border:1px solid rgba(100,180,255,.3);border-radius:6px;color:#64b4ff;font-size:12px;font-weight:700;padding:7px 12px;cursor:pointer;font-family:var(--font);flex-shrink:0;white-space:nowrap}
+.gym-log-btn:active{background:rgba(100,180,255,.25)}
 /* PESO LOG */
 .weight-card{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border2);border-radius:var(--r-sm);padding:12px 16px;gap:12px}
 .weight-card-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mid);margin-bottom:3px}
