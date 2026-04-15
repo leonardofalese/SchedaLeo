@@ -139,11 +139,15 @@ const DEFAULT_GYM = {
 // Chiavi KCAL_DB ordinate per lunghezza decrescente (più specifico vince)
 const KCAL_DB_SORTED = Object.entries(KCAL_DB).sort((a, b) => b[0].length - a[0].length);
 
-// Pesi medi per unità "pz" (grammi)
+// Pesi medi per unità "pz" (grammi — porzione edibile, senza guscio/buccia/nocciolo)
 const PZ_WEIGHTS = {
-  'uova': 60, 'uovo': 60,
-  'banana': 120, 'mela': 160, 'pera': 150, 'arancia': 170,
-  'mandarino': 80, 'kiwi': 80, 'pesche': 130, 'frutto': 150, 'frutta': 150,
+  'uova': 50, 'uovo': 50,           // uovo L sgusciato (~50g edibile)
+  'banana': 95,                      // media senza buccia
+  'mela': 140, 'pera': 140,         // media al netto del torsolo
+  'arancia': 130,                    // media senza buccia
+  'mandarino': 60, 'kiwi': 70,      // senza buccia/pelle
+  'pesche': 115,                     // senza nocciolo
+  'frutto': 120, 'frutta': 120,
   'biscotti': 10, 'gallette': 10, 'crackers': 8,
 };
 
@@ -201,6 +205,29 @@ const ALIASES = {
   'noci di cajù': 'anacardi', 'cajù': 'anacardi', 'noci pecan': 'noci', 'noci brasiliane': 'noci',
   // Proteine
   'whey': 'whey protein', 'proteine whey': 'whey protein',
+  // Olio — abbreviazioni comuni
+  'evo': 'olio evo', 'olio d\'oliva': 'olio evo', 'evoo': 'olio evo',
+  // Yogurt brand / varianti
+  'fage': 'yogurt greco 0%', 'fage 0%': 'yogurt greco 0%', 'fage total': 'yogurt greco',
+  'yogurt 0%': 'yogurt greco 0%', 'yogurt magro': 'yogurt bianco',
+  // Carne — varianti cottura / nomi alternativi
+  'filetto di manzo': 'bistecca di manzo', 'filetto': 'bistecca di manzo',
+  'hamburger': 'macinato manzo', 'burger': 'macinato manzo',
+  'polpette': 'macinato manzo',
+  'pollo alla piastra': 'petto di pollo', 'pollo al vapore': 'petto di pollo',
+  'pollo al forno': 'pollo arrosto',
+  'tacchino affettato': 'petto di tacchino', 'arrosto tacchino': 'petto di tacchino',
+  // Pesce
+  'salmone al forno': 'salmone fresco', 'salmone alla piastra': 'salmone fresco',
+  'tonno sgocciolato': 'tonno in scatoletta',
+  // Formaggi aggiuntivi
+  'mozzarella bufala': 'mozzarella', 'mozzarella di bufala': 'mozzarella',
+  // Insalata
+  'insalata mista': 'insalata', 'mix insalata': 'insalata', 'insalata verde': 'insalata',
+  // Riso varianti
+  'riso jasmine': 'riso', 'riso thai': 'riso', 'riso arborio': 'riso', 'riso carnaroli': 'riso',
+  // Verdure generiche
+  'verdure grigliate': 'verdure', 'verdure al forno': 'verdure', 'verdure miste': 'verdure',
 };
 const ALIASES_SORTED = Object.entries(ALIASES).sort((a, b) => b[0].length - a[0].length);
 
@@ -320,6 +347,34 @@ function _macroLookup(str) {
   return null;
 }
 
+// Soft lookup: se nessun match esatto, riprova rimuovendo parole sconosciute dalla fine
+// Es. "riso scottato" → fallisce → riprova "riso" → match
+function _dbLookupSoft(str) {
+  if (!str) return 0;
+  const exact = _dbLookup(str);
+  if (exact) return exact;
+  const words = str.trim().split(/\s+/);
+  for (let i = words.length - 1; i >= 1; i--) {
+    const hit = _dbLookup(words.slice(0, i).join(' '));
+    if (hit) return hit;
+  }
+  return 0;
+}
+function _macroLookupSoft(str) {
+  if (!str) return null;
+  const exact = _macroLookup(str);
+  if (exact) return exact;
+  const words = str.trim().split(/\s+/);
+  for (let i = words.length - 1; i >= 1; i--) {
+    const hit = _macroLookup(words.slice(0, i).join(' '));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// Kcal da macros: unica fonte di verità quando disponibili
+function _kcalFromMacros(m) { return Math.round(m.p * 4 + m.c * 4 + m.g * 9); }
+
 // Helper condiviso: estrae grammi, foodRaw, foodClean da una stringa alimento
 function _parseFoodGrams(foodStr) {
   const str = foodStr.toLowerCase().trim();
@@ -330,7 +385,16 @@ function _parseFoodGrams(foodStr) {
   const foodRaw   = str.slice(qtyMatch[0].length).trim();
   const foodClean = foodRaw.replace(STOPWORDS, ' ').replace(/\s+/g, ' ').trim();
   if (unit === 'kg') qty *= 1000;
-  else if (unit === 'l') qty *= 1000;
+  else if (unit === 'l') {
+    qty *= 1000;
+    // Densità olio se in litri (raro ma possibile)
+    if (foodRaw.includes('olio') || str.includes('olio')) qty = Math.round(qty * 0.92 * 10) / 10;
+  }
+  else if (unit === 'ml') {
+    // Correzione densità per gli oli: 1 ml ≈ 0.92 g (olio d'oliva / EVO)
+    if (foodRaw.includes('olio') || str.includes('olio')) qty = Math.round(qty * 0.92 * 10) / 10;
+    // Latticini e altri liquidi ≈ 1 g/ml — nessuna correzione
+  }
   else if (unit === 'pz') {
     let gPerPz = 50;
     for (const [food, w] of Object.entries(PZ_WEIGHTS)) {
@@ -358,27 +422,35 @@ function _parseFoodGrams(foodStr) {
 }
 
 // Calcola kcal da stringa alimento es. "150g latte intero", "2 uova", "3 fette pane"
+// Priorità: 1) valore esplicito (200kcal)  2) macro→formula P×4+C×4+G×9  3) KCAL_DB  4) fallback 150
 function calcKcalFromFood(foodStr) {
   if (!foodStr || foodStr === 'Giorno libero' || foodStr === 'Libero') return 0;
   const explicit = foodStr.match(/(\d+(?:\.\d+)?)\s*kcal/i);
   if (explicit) return parseFloat(explicit[1]);
   const p = _parseFoodGrams(foodStr);
   if (!p) return 0;
-  const kcalPer100 = _dbLookup(p.foodRaw) || _dbLookup(p.foodClean) || _dbLookup(p.foodAliased) || _dbLookup(p.str) || 150;
+  // Macros disponibili → kcal calcolate da formula (più coerente con display macros)
+  const macros = _macroLookupSoft(p.foodRaw) || _macroLookupSoft(p.foodClean) || _macroLookupSoft(p.foodAliased) || _macroLookupSoft(p.str);
+  if (macros) return Math.round((p.grams * _kcalFromMacros(macros)) / 100);
+  // Fallback: KCAL_DB con soft lookup (rimuove aggettivi sconosciuti), poi 150
+  const kcalPer100 = _dbLookupSoft(p.foodRaw) || _dbLookupSoft(p.foodClean) || _dbLookupSoft(p.foodAliased) || _dbLookupSoft(p.str) || 150;
   return Math.round((p.grams * kcalPer100) / 100);
 }
 
 // Calcola macronutrienti da stringa alimento → { kcal, p, c, g }
+// kcal è sempre derivata da P×4 + C×4 + G×9 quando i macros sono disponibili
 function calcMacrosFromFood(foodStr) {
   if (!foodStr || foodStr === 'Giorno libero' || foodStr === 'Libero') return {kcal:0,p:0,c:0,g:0};
   const explicit = foodStr.match(/(\d+(?:\.\d+)?)\s*kcal/i);
   if (explicit) return {kcal:parseFloat(explicit[1]),p:0,c:0,g:0};
   const parsed = _parseFoodGrams(foodStr);
   if (!parsed) return {kcal:0,p:0,c:0,g:0};
-  const kcalPer100 = _dbLookup(parsed.foodRaw) || _dbLookup(parsed.foodClean) || _dbLookup(parsed.foodAliased) || _dbLookup(parsed.str) || 150;
+  const macros = _macroLookupSoft(parsed.foodRaw) || _macroLookupSoft(parsed.foodClean) || _macroLookupSoft(parsed.foodAliased) || _macroLookupSoft(parsed.str);
+  const kcalPer100 = macros
+    ? _kcalFromMacros(macros)
+    : (_dbLookupSoft(parsed.foodRaw) || _dbLookupSoft(parsed.foodClean) || _dbLookupSoft(parsed.foodAliased) || _dbLookupSoft(parsed.str) || 150);
   const kcal = Math.round((parsed.grams * kcalPer100) / 100);
-  const macros = _macroLookup(parsed.foodRaw) || _macroLookup(parsed.foodClean) || _macroLookup(parsed.foodAliased) || _macroLookup(parsed.str);
-  if (!macros) return {kcal,p:0,c:0,g:0};
+  if (!macros) return {kcal, p:0, c:0, g:0};
   const f = parsed.grams / 100;
   return {
     kcal,
