@@ -178,7 +178,7 @@ function updateProgress() {
 }
 
 // ── ANALYTICS ─────────────────────────────────────────────
-let _chartWeekly = null, _chartMeals = null, _chartProjection = null, _chartGym = null, _chartVol = null;
+let _chartWeekly = null, _chartMeals = null, _chartProjection = null, _chartGym = null, _chartVol = null, _chartWeight = null;
 
 function calcActivityMultiplier(trainingDays, totalVol) {
   // Base da frequenza allenamenti
@@ -229,6 +229,7 @@ function renderTrackerAnalytics() {
   if (_chartProjection){ _chartProjection.destroy(); _chartProjection= null; }
   if (_chartGym)       { _chartGym.destroy();       _chartGym       = null; }
   if (_chartVol)       { _chartVol.destroy();        _chartVol       = null; }
+  if (_chartWeight)    { _chartWeight.destroy();     _chartWeight    = null; }
 
   const el = document.getElementById('trackerAnalytics');
   const pd = state.profileData;
@@ -409,10 +410,19 @@ function renderTrackerAnalytics() {
       </div>
     </div>` : '';
 
+  // Storico peso
+  const wlog = (state.weightLog || []).slice(-30); // ultimi 30 giorni
+  const weightChartHTML = wlog.length >= 2 ? `
+    <div class="analytics-card">
+      <div class="analytics-card-title">Andamento peso · ultimi ${wlog.length} giorni</div>
+      <canvas id="weightChart" height="110"></canvas>
+    </div>` : '';
+
   el.innerHTML = `
     ${noProfileNote}
     ${statsHTML ? `<div class="analytics-section-title">Alimentazione</div>${statsHTML}` : ''}
     ${macroCardHTML}
+    ${weightChartHTML}
     ${projHTML}
     <div class="analytics-card">
       <div class="analytics-card-title">Kcal giornaliere · scheda</div>
@@ -596,6 +606,36 @@ function renderTrackerAnalytics() {
           }
         });
       }
+    }
+
+    // Weight history line chart
+    const wCtx2 = document.getElementById('weightChart')?.getContext('2d');
+    if (wCtx2 && wlog.length >= 2 && typeof Chart !== 'undefined') {
+      const wLabels = wlog.map(e => e.date.slice(5)); // MM-DD
+      const wData   = wlog.map(e => e.kg);
+      const wMin = Math.floor(Math.min(...wData) - 1);
+      const wMax = Math.ceil(Math.max(...wData) + 1);
+      // Overlay proiezione se disponibile
+      const datasets = [{
+        label: 'Peso reale',
+        data: wData,
+        borderColor: 'rgba(184,245,102,.9)',
+        backgroundColor: 'rgba(184,245,102,.08)',
+        fill: true, tension: 0.3, pointRadius: 3, pointHoverRadius: 5,
+        pointBackgroundColor: 'rgba(184,245,102,.9)'
+      }];
+      _chartWeight = new Chart(wCtx2, {
+        type: 'line',
+        data: { labels: wLabels, datasets },
+        options: {
+          responsive: true,
+          plugins: { legend:{display:false}, tooltip:{callbacks:{label:c=>c.raw+' kg'}} },
+          scales: {
+            x: { grid:{display:false}, ticks:{color:'#888',font:{size:10}} },
+            y: { min:wMin, max:wMax, grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#888',font:{size:10}} }
+          }
+        }
+      });
     }
   }, 50);
 }
@@ -875,6 +915,49 @@ function renderGymExercises() {
         ${ex.note ? `<div class="gym-ex-note">${ex.note}</div>` : ''}
       </div>`;
     }).join('')}`;
+}
+
+// ── PESO LOG ─────────────────────────────────────────────
+function renderWeightCard() {
+  const el = document.getElementById('weightCard');
+  if (!el) return;
+  const log = state.weightLog || [];
+  const todayStr = new Date().toISOString().slice(0,10);
+  const todayEntry = log.find(e => e.date === todayStr);
+  const last = log.length > 0 ? log[log.length - 1] : null;
+  const prev = log.length > 1 ? log[log.length - 2] : null;
+  const delta = (last && prev) ? (last.kg - prev.kg) : null;
+  const deltaStr = delta !== null ? (delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)) + ' kg' : '';
+  const deltaColor = delta === null ? '' : delta > 0 ? (state.profileData?.obiettivo === 'dimagrire' ? 'color:#ff6b6b' : 'color:var(--green)') : (state.profileData?.obiettivo === 'massa' ? 'color:#ff6b6b' : 'color:var(--green)');
+
+  el.innerHTML = `<div class="weight-card">
+    <div class="weight-card-left">
+      <div class="weight-card-label">Peso oggi</div>
+      <div class="weight-card-val">${todayEntry ? todayEntry.kg + ' kg' : (last ? last.kg + ' kg' : (state.profileData?.peso ? state.profileData.peso + ' kg' : '—'))}</div>
+      ${deltaStr ? `<div class="weight-card-delta" style="${deltaColor}">${deltaStr} dall'ultima</div>` : ''}
+    </div>
+    <div class="weight-card-right">
+      <input class="weight-input" type="number" step="0.1" min="30" max="300" id="weightInput" placeholder="${todayEntry ? todayEntry.kg : 'kg'}" ${todayEntry ? `value="${todayEntry.kg}"` : ''}>
+      <button class="weight-save-btn" onclick="logWeight()">✓</button>
+    </div>
+  </div>`;
+}
+
+function logWeight() {
+  const input = document.getElementById('weightInput');
+  const val = parseFloat(input?.value);
+  if (!val || val < 30 || val > 300) return;
+  const todayStr = new Date().toISOString().slice(0,10);
+  if (!state.weightLog) state.weightLog = [];
+  const idx = state.weightLog.findIndex(e => e.date === todayStr);
+  if (idx >= 0) state.weightLog[idx].kg = val;
+  else state.weightLog.push({ date: todayStr, kg: val });
+  // Aggiorna anche profileData.peso così i calcoli BMR/TDEE restano aggiornati
+  if (!state.profileData) state.profileData = {};
+  state.profileData.peso = val;
+  save();
+  renderWeightCard();
+  _refreshTracker();
 }
 
 function renderGym() {

@@ -9,6 +9,7 @@ async function initApp(user, isNewUser = false) {
   renderDayNav();
   renderMeals();
   updateProgress();
+  renderWeightCard();
   if (isNewUser) {
     // Nuovo utente: stato completamente vuoto, nessuna scheda di default
     state = {

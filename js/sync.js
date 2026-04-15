@@ -2,7 +2,7 @@
 const _LOCAL_KEY = 'scheda_v2';
 
 function _statePayload() {
-  return { meals: state.meals, shop: state.shop, mealData: state.mealData, shopData: state.shopData, schedaLoadedAt: state.schedaLoadedAt, profileData: state.profileData, gymData: state.gymData, gymLog: state.gymLog };
+  return { meals: state.meals, shop: state.shop, mealData: state.mealData, shopData: state.shopData, schedaLoadedAt: state.schedaLoadedAt, profileData: state.profileData, gymData: state.gymData, gymLog: state.gymLog, weightLog: state.weightLog };
 }
 function saveLocal() {
   try { localStorage.setItem(_LOCAL_KEY, JSON.stringify(_statePayload())); } catch(e) {}
@@ -38,6 +38,7 @@ function _applyLoaded(loaded) {
     state.gymData.giorni = fixedG;
   }
   if (loaded.gymLog) state.gymLog = loaded.gymLog;
+  if (loaded.weightLog) state.weightLog = loaded.weightLog;
 }
 
 async function loadFromCloud() {
@@ -51,7 +52,8 @@ async function loadFromCloud() {
     gymData: JSON.parse(JSON.stringify(DEFAULT_GYM)),
     gymLog: {},
     profileData: null,
-    schedaLoadedAt: null
+    schedaLoadedAt: null,
+    weightLog: []
   };
   // Carica localStorage subito (nessuna attesa rete)
   const local = loadLocal();
