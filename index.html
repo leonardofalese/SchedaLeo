@@ -97,6 +97,32 @@
   <div class="welcome-box">
     <div class="welcome-title">Ciao, <em id="welcomeName">Leo</em>! 👋</div>
     <div class="welcome-sub">Carica la tua scheda alimentare per iniziare. Puoi importare un PDF, un'immagine o un file di testo.</div>
+
+    <div class="profile-section">
+      <div class="profile-section-title">Dati fisici <span style="font-size:10px;opacity:.45;font-weight:400;text-transform:none;letter-spacing:0">(opzionale)</span></div>
+      <div class="profile-sex-row">
+        <span class="profile-sex-label">Sesso</span>
+        <div style="display:flex;gap:6px">
+          <button class="sex-btn" id="welcomeSexM" onclick="setSex('M','welcome')">♂ Uomo</button>
+          <button class="sex-btn" id="welcomeSexF" onclick="setSex('F','welcome')">♀ Donna</button>
+        </div>
+      </div>
+      <div class="profile-nums-row">
+        <div class="profile-num-field"><label>Età</label><div class="profile-num-wrap"><input class="profile-num-input" type="number" id="welcomeEta" placeholder="25" min="10" max="100"><span class="profile-num-unit">a</span></div></div>
+        <div class="profile-num-field"><label>Altezza</label><div class="profile-num-wrap"><input class="profile-num-input" type="number" id="welcomeAltezza" placeholder="175" min="100" max="250"><span class="profile-num-unit">cm</span></div></div>
+        <div class="profile-num-field"><label>Peso</label><div class="profile-num-wrap"><input class="profile-num-input" type="number" id="welcomePeso" placeholder="70" min="30" max="300"><span class="profile-num-unit">kg</span></div></div>
+      </div>
+      <div class="goal-row">
+        <button class="goal-btn" id="welcomeGoalDimagrire" onclick="setGoal('dimagrire','welcome')">↓ Dimagrire</button>
+        <button class="goal-btn" id="welcomeGoalMantenere" onclick="setGoal('mantenere','welcome')">→ Mantenere</button>
+        <button class="goal-btn" id="welcomeGoalMassa" onclick="setGoal('massa','welcome')">↑ Massa</button>
+      </div>
+      <div class="profile-target-row" id="welcomePesoObiettivoRow" style="display:none">
+        <span class="profile-target-label">Peso obiettivo</span>
+        <div class="profile-num-wrap" style="gap:6px"><input class="profile-num-input" type="number" id="welcomePesoObiettivo" placeholder="65" min="30" max="300" style="max-width:72px"><span class="profile-num-unit">kg</span></div>
+      </div>
+    </div>
+
     <div class="import-drop" id="welcomeImportDrop" ondragover="handleDragOver(event,'welcomeImportDrop')" ondragleave="handleDragLeave(event,'welcomeImportDrop')" ondrop="handleDrop(event,'welcome')">
       <input type="file" id="welcomeImportFile" accept=".pdf,.jpg,.jpeg,.png,.txt" onchange="handleFileSelect(event,'welcome')">
       <div class="import-drop-icon">📄</div>
@@ -172,8 +198,11 @@
     <div class="view" id="view-tracker">
       <div style="padding:20px 20px 0">
         <div style="font-size:22px;font-weight:800;margin-bottom:4px">Tracker</div>
-        <div style="font-size:13px;color:var(--text-mid);margin-bottom:16px">Settimana in corso</div>
+        <div style="font-size:13px;color:var(--text-mid);margin-bottom:16px">Analisi e progressi</div>
+        <div id="trackerAnalytics"></div>
+        <div class="settings-section-title" style="margin-top:16px;margin-bottom:10px">Settimana in corso</div>
         <div id="trackerContent"></div>
+        <div style="height:20px"></div>
       </div>
     </div>
 
@@ -253,6 +282,33 @@
         </div>
 
         <div class="settings-section">
+          <div class="settings-section-title">Dati fisici</div>
+          <div class="profile-sex-row" style="margin-bottom:12px">
+            <span class="profile-sex-label">Sesso</span>
+            <div style="display:flex;gap:6px">
+              <button class="sex-btn" id="settingsSexM" onclick="setSex('M','settings')">♂ Uomo</button>
+              <button class="sex-btn" id="settingsSexF" onclick="setSex('F','settings')">♀ Donna</button>
+            </div>
+          </div>
+          <div class="profile-nums-row">
+            <div class="profile-num-field"><label>Età</label><div class="profile-num-wrap"><input class="profile-num-input" type="number" id="settingsEta" placeholder="25" min="10" max="100"><span class="profile-num-unit">a</span></div></div>
+            <div class="profile-num-field"><label>Altezza</label><div class="profile-num-wrap"><input class="profile-num-input" type="number" id="settingsAltezza" placeholder="175" min="100" max="250"><span class="profile-num-unit">cm</span></div></div>
+            <div class="profile-num-field"><label>Peso</label><div class="profile-num-wrap"><input class="profile-num-input" type="number" id="settingsPeso" placeholder="70" min="30" max="300"><span class="profile-num-unit">kg</span></div></div>
+          </div>
+          <div class="goal-row" style="margin-top:10px">
+            <button class="goal-btn" id="settingsGoalDimagrire" onclick="setGoal('dimagrire','settings')">↓ Dimagrire</button>
+            <button class="goal-btn" id="settingsGoalMantenere" onclick="setGoal('mantenere','settings')">→ Mantenere</button>
+            <button class="goal-btn" id="settingsGoalMassa" onclick="setGoal('massa','settings')">↑ Massa</button>
+          </div>
+          <div class="profile-target-row" id="settingsPesoObiettivoRow" style="display:none;margin-top:10px">
+            <span class="profile-target-label">Peso obiettivo</span>
+            <div class="profile-num-wrap" style="gap:6px"><input class="profile-num-input" type="number" id="settingsPesoObiettivo" placeholder="65" min="30" max="300" style="max-width:72px"><span class="profile-num-unit">kg</span></div>
+          </div>
+          <button class="modal-btn" style="margin-top:14px" onclick="saveSettingsProfile()">Salva dati fisici</button>
+          <div class="modal-success" id="settingsProfileSuccess">Dati salvati!</div>
+        </div>
+
+        <div class="settings-section">
           <div class="settings-section-title">Sovrascrivi scheda da file</div>
           <div style="font-size:12px;color:var(--text-mid);margin-bottom:12px">Carica un nuovo file per sovrascrivere tutti i pasti della settimana. L'operazione sostituirà la scheda attuale.</div>
           <div class="import-drop" id="importDrop" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
@@ -311,6 +367,7 @@
 <div class="toast" id="toast">Salvato!</div>
 
   <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/js/config.js"></script>
   <script src="/js/state.js"></script>

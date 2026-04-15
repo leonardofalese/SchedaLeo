@@ -196,8 +196,47 @@ body{font-family:var(--font);color:var(--text)}
 .welcome-box{width:100%;max-width:360px}
 .welcome-title{font-size:24px;font-weight:800;margin-bottom:6px}
 .welcome-title em{color:var(--green);font-style:normal}
-.welcome-sub{font-size:13px;color:var(--text-mid);margin-bottom:28px}
+.welcome-sub{font-size:13px;color:var(--text-mid);margin-bottom:16px}
 .welcome-skip{background:transparent;border:none;font-family:var(--font);font-size:13px;color:var(--text-soft);cursor:pointer;text-decoration:underline;margin-top:12px;display:block;width:100%;text-align:center}
+/* PROFILE FORM */
+.profile-section{background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;margin-bottom:16px}
+.profile-section-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft);margin-bottom:12px}
+.profile-sex-row{display:flex;align-items:center;gap:10px}
+.profile-sex-label{font-size:12px;color:var(--text-mid);min-width:38px}
+.sex-btn{padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;font-family:var(--font);font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer;transition:all .15s}
+.sex-btn.active{border-color:var(--green);color:var(--green);background:var(--green-dim)}
+.profile-nums-row{display:flex;gap:8px;margin-top:10px}
+.profile-num-field{flex:1;display:flex;flex-direction:column;gap:4px}
+.profile-num-field label{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-soft)}
+.profile-num-wrap{display:flex;align-items:center;gap:3px}
+.profile-num-input{width:100%;min-width:0;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:7px 6px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;text-align:center;transition:border-color .2s}
+.profile-num-input:focus{border-color:var(--green)}
+.profile-num-unit{font-size:10px;color:var(--text-soft);white-space:nowrap}
+.goal-row{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.goal-btn{flex:1;padding:7px 6px;border-radius:20px;border:1px solid var(--border2);background:transparent;font-family:var(--font);font-size:11px;font-weight:600;color:var(--text-mid);cursor:pointer;transition:all .15s;text-align:center;min-width:70px}
+.goal-btn.active{border-color:var(--green);color:var(--green);background:var(--green-dim)}
+.profile-target-row{display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--border)}
+.profile-target-label{font-size:12px;color:var(--text-mid);flex:1}
+/* ANALYTICS */
+.analytics-note{font-size:12px;color:var(--text-soft);background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:12px}
+.analytics-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.analytics-stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 6px;text-align:center}
+.analytics-stat.surplus{border-color:rgba(255,140,66,.3);background:rgba(255,140,66,.07)}
+.analytics-stat.deficit{border-color:rgba(100,200,255,.3);background:rgba(100,200,255,.07)}
+.analytics-stat-val{font-size:15px;font-weight:800;font-family:var(--mono);color:var(--text);margin-bottom:3px}
+.analytics-stat.surplus .analytics-stat-val{color:var(--orange)}
+.analytics-stat.deficit .analytics-stat-val{color:#64c8ff}
+.analytics-stat-label{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft)}
+.analytics-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.analytics-card-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft);margin-bottom:14px}
+.analytics-proj-row{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.analytics-proj-arrow{font-size:20px;color:var(--text-soft);flex-shrink:0}
+.analytics-proj-label{font-size:10px;color:var(--text-soft);margin-bottom:2px}
+.analytics-proj-val{font-size:20px;font-weight:800;font-family:var(--mono)}
+.analytics-green{color:var(--green)}
+.analytics-proj-info{display:flex;justify-content:space-between;font-size:12px;color:var(--text-mid);margin-bottom:12px}
+.analytics-proj-info strong{color:var(--text)}
+.analytics-warn{font-size:11px;color:var(--orange);background:rgba(255,140,66,.1);border:1px solid rgba(255,140,66,.2);border-radius:var(--r-sm);padding:8px 10px;margin-bottom:10px}
 /* GREETING MODAL */
 .greeting-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px}
 .greeting-overlay.hidden{display:none}

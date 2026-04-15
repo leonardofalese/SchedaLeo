@@ -31,6 +31,7 @@ async function loadFromCloud() {
     }
     if (loaded.shopData) state.shopData = loaded.shopData;
     if (loaded.schedaLoadedAt) state.schedaLoadedAt = loaded.schedaLoadedAt;
+    if (loaded.profileData) state.profileData = loaded.profileData;
   }
 }
 
@@ -39,7 +40,7 @@ async function saveToCloud() {
   showSync();
   await sb.from('user_data').upsert({
     user_id: currentUser.id,
-    data: { meals: state.meals, shop: state.shop, mealData: state.mealData, shopData: state.shopData, schedaLoadedAt: state.schedaLoadedAt },
+    data: { meals: state.meals, shop: state.shop, mealData: state.mealData, shopData: state.shopData, schedaLoadedAt: state.schedaLoadedAt, profileData: state.profileData },
     updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
   hideSync();

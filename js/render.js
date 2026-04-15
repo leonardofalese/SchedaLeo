@@ -130,7 +130,183 @@ function updateProgress() {
   }).join('');
 }
 
+// ── ANALYTICS ─────────────────────────────────────────────
+let _chartWeekly = null, _chartMeals = null, _chartProjection = null;
+
+function calcBMR(pd) {
+  if (!pd || !pd.peso || !pd.altezza || !pd.eta) return 0;
+  const base = 10 * pd.peso + 6.25 * pd.altezza - 5 * pd.eta;
+  return Math.round(pd.sesso === 'F' ? base - 161 : base + 5);
+}
+
+function calcAvgDailyKcal() {
+  const kcals = Array.from({length:7}, (_,d) => calcTotalDayKcal(d)).filter(k => k > 0);
+  return kcals.length ? Math.round(kcals.reduce((a,b) => a+b, 0) / kcals.length) : 0;
+}
+
+function renderTrackerAnalytics() {
+  if (_chartWeekly) { _chartWeekly.destroy(); _chartWeekly = null; }
+  if (_chartMeals) { _chartMeals.destroy(); _chartMeals = null; }
+  if (_chartProjection) { _chartProjection.destroy(); _chartProjection = null; }
+
+  const el = document.getElementById('trackerAnalytics');
+  const pd = state.profileData;
+  const weekKcal = Array.from({length:7}, (_,d) => calcTotalDayKcal(d));
+  const avgKcal = calcAvgDailyKcal();
+
+  // Meal avg kcal (across whole week)
+  const mealAvgKcal = MEAL_KEYS.map(k => {
+    let tot = 0;
+    for (let d=0; d<7; d++) (state.mealData.days[d]?.[k]||[]).forEach(f => { tot += calcKcalFromFood(f); });
+    return Math.round(tot / 7);
+  });
+
+  let statsHTML = '';
+  let projHTML = '';
+
+  if (pd && (pd.peso || pd.altezza || pd.eta)) {
+    const bmr = calcBMR(pd);
+    const tdee = bmr ? Math.round(bmr * 1.55) : 0;
+    const balance = avgKcal && tdee ? avgKcal - tdee : null;
+    const balClass = balance === null ? '' : balance > 0 ? ' surplus' : ' deficit';
+    const balText = balance === null ? '—' : (balance > 0 ? '+' : '') + balance;
+
+    statsHTML = `<div class="analytics-stats-row">
+      <div class="analytics-stat"><div class="analytics-stat-val">${bmr||'—'}</div><div class="analytics-stat-label">BMR kcal</div></div>
+      <div class="analytics-stat"><div class="analytics-stat-val">${tdee||'—'}</div><div class="analytics-stat-label">TDEE kcal</div></div>
+      <div class="analytics-stat"><div class="analytics-stat-val">${avgKcal||'—'}</div><div class="analytics-stat-label">Scheda/die</div></div>
+      <div class="analytics-stat${balClass}"><div class="analytics-stat-val">${balText}</div><div class="analytics-stat-label">Bilancio</div></div>
+    </div>`;
+
+    if (pd.obiettivo && pd.obiettivo !== 'mantenere' && pd.pesoObiettivo && pd.peso && balance !== null && Math.abs(balance) > 50) {
+      const kgDiff = parseFloat(Math.abs(pd.peso - pd.pesoObiettivo).toFixed(1));
+      const daysNeeded = Math.round((kgDiff * 7700) / Math.abs(balance));
+      const weeksNeeded = Math.round(daysNeeded / 7);
+      const timeStr = weeksNeeded <= 12 ? weeksNeeded + ' settimane' : (weeksNeeded / 4.3).toFixed(1) + ' mesi';
+      const dirLabel = pd.obiettivo === 'dimagrire' ? 'Da perdere' : 'Da guadagnare';
+      const onTrack = (pd.obiettivo === 'dimagrire' && balance < 0) || (pd.obiettivo === 'massa' && balance > 0);
+      projHTML = `<div class="analytics-card">
+        <div class="analytics-card-title">Proiezione obiettivo</div>
+        <div class="analytics-proj-row">
+          <div><div class="analytics-proj-label">Peso attuale</div><div class="analytics-proj-val">${pd.peso} kg</div></div>
+          <div class="analytics-proj-arrow">→</div>
+          <div><div class="analytics-proj-label">Obiettivo</div><div class="analytics-proj-val analytics-green">${pd.pesoObiettivo} kg</div></div>
+        </div>
+        <div class="analytics-proj-info">
+          <span>${dirLabel}: <strong>${kgDiff} kg</strong></span>
+          <span>Stima: <strong class="analytics-green">${timeStr}</strong></span>
+        </div>
+        ${!onTrack ? '<div class="analytics-warn">⚠ Bilancio non allineato con l\'obiettivo</div>' : ''}
+        <canvas id="projectionChart" height="90"></canvas>
+      </div>`;
+    }
+  }
+
+  const noProfile = !pd || (!pd.peso && !pd.eta);
+  const noProfileNote = noProfile ? `<div class="analytics-note">Aggiungi i tuoi dati fisici in Impostazioni per vedere BMR, TDEE e la proiezione obiettivo.</div>` : '';
+
+  el.innerHTML = `${noProfileNote}${statsHTML}${projHTML}
+    <div class="analytics-card">
+      <div class="analytics-card-title">Kcal giornaliere · scheda</div>
+      <canvas id="weeklyChart" height="120"></canvas>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-card-title">Media kcal per pasto</div>
+      <canvas id="mealsChart" height="160"></canvas>
+    </div>`;
+
+  const chartDefaults = {
+    color: '#888',
+    borderColor: 'rgba(255,255,255,.06)',
+    font: { family: "'DM Mono', monospace", size: 11 }
+  };
+
+  setTimeout(() => {
+    // Weekly bar chart
+    const wCtx = document.getElementById('weeklyChart')?.getContext('2d');
+    if (wCtx && typeof Chart !== 'undefined') {
+      _chartWeekly = new Chart(wCtx, {
+        type: 'bar',
+        data: {
+          labels: GIORNI_SHORT,
+          datasets: [{ data: weekKcal,
+            backgroundColor: weekKcal.map((_,i) => i===today ? 'rgba(184,245,102,.85)' : 'rgba(184,245,102,.3)'),
+            borderRadius: 6, borderSkipped: false }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: {display:false}, tooltip: { callbacks: { label: c => c.raw + ' kcal' } } },
+          scales: {
+            x: { grid:{display:false}, ticks: { color:'#888', font:{size:11} } },
+            y: { grid: { color:'rgba(255,255,255,.06)' }, ticks: { color:'#888', font:{size:11} } }
+          }
+        }
+      });
+    }
+
+    // Meals doughnut
+    const mCtx = document.getElementById('mealsChart')?.getContext('2d');
+    if (mCtx && typeof Chart !== 'undefined') {
+      _chartMeals = new Chart(mCtx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.values(MEAL_LABELS),
+          datasets: [{ data: mealAvgKcal,
+            backgroundColor: ['rgba(184,245,102,.8)','rgba(100,180,255,.8)','rgba(255,180,50,.8)','rgba(200,100,255,.8)'],
+            borderWidth: 0 }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position:'bottom', labels: { color:'#aaa', font:{size:11}, padding:12, boxWidth:12 } },
+            tooltip: { callbacks: { label: c => c.label + ': ' + c.raw + ' kcal' } }
+          }
+        }
+      });
+    }
+
+    // Projection line chart
+    if (pd?.pesoObiettivo && pd?.peso) {
+      const pCtx = document.getElementById('projectionChart')?.getContext('2d');
+      const bmr2 = calcBMR(pd);
+      const tdee2 = bmr2 ? Math.round(bmr2 * 1.55) : 0;
+      const avg2 = calcAvgDailyKcal();
+      const bal2 = avg2 - tdee2;
+      if (pCtx && Math.abs(bal2) > 50 && typeof Chart !== 'undefined') {
+        const kgDiff2 = Math.abs(pd.peso - pd.pesoObiettivo);
+        const weeksMax = Math.min(Math.round((kgDiff2 * 7700) / (Math.abs(bal2) * 7)) + 1, 60);
+        const pts = Array.from({length: weeksMax+1}, (_,i) => {
+          const kg = pd.peso + (bal2 / 7700) * 7 * i;
+          return parseFloat(kg.toFixed(1));
+        });
+        const lbls = pts.map((_,i) => i===0 ? 'Oggi' : i===weeksMax ? 'Traguardo' : i%4===0 ? i+'w' : '');
+        _chartProjection = new Chart(pCtx, {
+          type: 'line',
+          data: {
+            labels: lbls,
+            datasets: [{
+              data: pts,
+              borderColor: 'rgba(184,245,102,.8)',
+              backgroundColor: 'rgba(184,245,102,.1)',
+              fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend:{display:false}, tooltip: { callbacks: { label: c => c.raw+' kg' } } },
+            scales: {
+              x: { grid:{display:false}, ticks:{color:'#888',font:{size:10}} },
+              y: { grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#888',font:{size:10}} }
+            }
+          }
+        });
+      }
+    }
+  }, 50);
+}
+
 function renderTracker() {
+  renderTrackerAnalytics();
   document.getElementById('trackerContent').innerHTML = GIORNI.map((g,di) => {
     const cnt = MEAL_KEYS.filter(k=>isDone(di,k)).length;
     const dots = MEAL_KEYS.map(k=>`<div class="score-dot ${isDone(di,k)?'done':''}"></div>`).join('');

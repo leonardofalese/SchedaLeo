@@ -162,6 +162,7 @@ async function confirmWelcomeImport() {
   const generatedShop = generateShopFromMeals(state.mealData);
   if (generatedShop.length > 0) state.shopData = generatedShop;
   state.schedaLoadedAt = new Date().toISOString();
+  saveWelcomeProfile();
   importedMealData = null;
   save();
   renderMeals();
@@ -216,6 +217,65 @@ function closeGreetingBg(e) {
   if (e.target === document.getElementById('greetingModal')) closeGreeting();
 }
 
+// ── PROFILE FORM (welcome + settings) ─────────────────────
+function setSex(sex, prefix) {
+  ['M','F'].forEach(s => {
+    const btn = document.getElementById(`${prefix}Sex${s}`);
+    if (btn) btn.classList.toggle('active', s === sex);
+  });
+}
+
+function setGoal(goal, prefix) {
+  ['Dimagrire','Mantenere','Massa'].forEach(g => {
+    const btn = document.getElementById(`${prefix}Goal${g}`);
+    if (btn) btn.classList.toggle('active', g.toLowerCase() === goal);
+  });
+  const row = document.getElementById(`${prefix}PesoObiettivoRow`);
+  if (row) row.style.display = goal !== 'mantenere' ? 'flex' : 'none';
+}
+
+function readProfileFromDOM(prefix) {
+  const sexM = document.getElementById(`${prefix}SexM`);
+  const sexF = document.getElementById(`${prefix}SexF`);
+  const sesso = sexM?.classList.contains('active') ? 'M' : sexF?.classList.contains('active') ? 'F' : null;
+  const eta = parseInt(document.getElementById(`${prefix}Eta`)?.value) || null;
+  const altezza = parseInt(document.getElementById(`${prefix}Altezza`)?.value) || null;
+  const peso = parseFloat(document.getElementById(`${prefix}Peso`)?.value) || null;
+  const pesoObiettivo = parseFloat(document.getElementById(`${prefix}PesoObiettivo`)?.value) || null;
+  const goals = ['Dimagrire','Mantenere','Massa'];
+  const goal = goals.find(g => document.getElementById(`${prefix}Goal${g}`)?.classList.contains('active'));
+  const obiettivo = goal ? goal.toLowerCase() : null;
+  return { sesso, eta, altezza, peso, pesoObiettivo, obiettivo };
+}
+
+function populateProfileDOM(prefix, pd) {
+  if (!pd) return;
+  if (pd.sesso) setSex(pd.sesso, prefix);
+  if (pd.eta) { const el = document.getElementById(`${prefix}Eta`); if (el) el.value = pd.eta; }
+  if (pd.altezza) { const el = document.getElementById(`${prefix}Altezza`); if (el) el.value = pd.altezza; }
+  if (pd.peso) { const el = document.getElementById(`${prefix}Peso`); if (el) el.value = pd.peso; }
+  if (pd.obiettivo) {
+    setGoal(pd.obiettivo, prefix);
+    if (pd.pesoObiettivo) {
+      const el = document.getElementById(`${prefix}PesoObiettivo`);
+      if (el) el.value = pd.pesoObiettivo;
+    }
+  }
+}
+
+function saveWelcomeProfile() {
+  const pd = readProfileFromDOM('welcome');
+  if (pd.eta || pd.altezza || pd.peso || pd.obiettivo) {
+    state.profileData = pd;
+    save();
+  }
+}
+
+function skipWelcomeEmpty() {
+  saveWelcomeProfile();
+  document.getElementById('welcomeScreen').classList.add('hidden');
+}
+
 // ── SETTINGS VIEW ─────────────────────────────────────────
 function initSettingsView() {
   const nickname = currentUser?.user_metadata?.nickname || '';
@@ -227,6 +287,15 @@ function initSettingsView() {
   document.getElementById('settingsNicknameSuccess').classList.remove('show');
   document.getElementById('settingsPasswordError').classList.remove('show');
   document.getElementById('settingsPasswordSuccess').classList.remove('show');
+  populateProfileDOM('settings', state.profileData);
+}
+
+async function saveSettingsProfile() {
+  const pd = readProfileFromDOM('settings');
+  state.profileData = pd;
+  await saveToCloud();
+  document.getElementById('settingsProfileSuccess').classList.add('show');
+  setTimeout(() => document.getElementById('settingsProfileSuccess').classList.remove('show'), 2000);
 }
 
 async function saveSettingsNickname() {
