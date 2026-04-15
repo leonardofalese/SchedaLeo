@@ -4,6 +4,7 @@ function switchView(view,btn) {
   document.getElementById('view-'+view).classList.add('active');
   btn.classList.add('active');
   document.getElementById('mainContent').scrollTop=0;
+  document.getElementById('dayNav').style.display = view==='oggi' ? '' : 'none';
   if(timerInt){clearInterval(timerInt);timerInt=null;}
   if(view==='tracker')renderTracker();
   if(view==='spesa'){renderShop();renderShopEditor();}
